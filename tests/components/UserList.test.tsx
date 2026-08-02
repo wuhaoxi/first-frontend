@@ -1,10 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import UserList from '../../src/components/UserList';
-import * as api from '../../src/api/users';
+import UserList from '@/components/UserList';
+import * as api from '@/lib/api/users';
 
-vi.mock('../../src/api/users');
+vi.mock('@/lib/api/users');
+
+const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
 
 const mockUsers = [
   { id: 1, name: 'Alice', email: 'alice@example.com' },
@@ -14,16 +26,13 @@ const mockUsers = [
 describe('UserList', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockPush.mockClear();
   });
 
   it('renders user rows when API returns data', async () => {
     vi.mocked(api.getUsers).mockResolvedValue(mockUsers);
 
-    render(
-      <BrowserRouter>
-        <UserList />
-      </BrowserRouter>
-    );
+    render(<UserList />);
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument();
@@ -34,11 +43,7 @@ describe('UserList', () => {
   it('renders empty state when no users', async () => {
     vi.mocked(api.getUsers).mockResolvedValue([]);
 
-    render(
-      <BrowserRouter>
-        <UserList />
-      </BrowserRouter>
-    );
+    render(<UserList />);
 
     await waitFor(() => {
       expect(screen.getByText(/No users found/)).toBeInTheDocument();
@@ -48,11 +53,7 @@ describe('UserList', () => {
   it('displays error when API fails', async () => {
     vi.mocked(api.getUsers).mockRejectedValue(new Error('Network error'));
 
-    render(
-      <BrowserRouter>
-        <UserList />
-      </BrowserRouter>
-    );
+    render(<UserList />);
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument();

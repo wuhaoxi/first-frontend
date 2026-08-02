@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getUsers, getUserById, createUser, updateUser, deleteUser } from '../../src/api/users';
+import { getUsers, getUserById, createUser, updateUser, deleteUser } from '@/lib/api/users';
 
 describe('users API client', () => {
   beforeEach(() => {

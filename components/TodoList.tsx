@@ -1,7 +1,10 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getTodos, toggleTodo, deleteTodo } from '../api/todos';
-import { Todo } from '../types/todo';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { getTodos, toggleTodo, deleteTodo } from '@/lib/api/todos';
+import { Todo } from '@/types/todo';
 import './TodoList.css';
 
 function TodoList() {
@@ -9,7 +12,7 @@ function TodoList() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const fetchTodos = async (status?: string) => {
     try {
@@ -55,7 +58,7 @@ function TodoList() {
     <div>
       <div className="todo-list-header">
         <h2>Todos</h2>
-        <Link to="/todos/new" className="btn-primary">New Todo</Link>
+        <Link href="/todos/new" className="btn-primary">New Todo</Link>
       </div>
 
       <div className="filter-tabs">
@@ -67,7 +70,7 @@ function TodoList() {
       {error && <p className="error">{error}</p>}
 
       {todos.length === 0 ? (
-        <p>No todos. <Link to="/todos/new">Create one</Link></p>
+        <p>No todos. <Link href="/todos/new">Create one</Link></p>
       ) : (
         <ul className="todo-list">
           {todos.map((todo) => (
@@ -86,7 +89,7 @@ function TodoList() {
                 {todo.dueDate && <span className="todo-due">Due: {todo.dueDate.slice(0, 16)}</span>}
               </div>
               <div className="todo-actions">
-                <button onClick={() => navigate(`/todos/${todo.id}/edit`)}>Edit</button>
+                <button onClick={() => router.push(`/todos/${todo.id}/edit`)}>Edit</button>
                 <button className="danger" onClick={() => handleDelete(todo.id)}>Delete</button>
               </div>
             </li>

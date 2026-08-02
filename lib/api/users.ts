@@ -1,4 +1,4 @@
-import { User, CreateUserRequest, UpdateUserRequest } from '../types/user';
+import { User, CreateUserRequest, UpdateUserRequest } from '@/types/user';
 
 const BASE_URL = '/api/users';
 

@@ -1,34 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
-import UserForm from '../../src/components/UserForm';
-import * as api from '../../src/api/users';
+import UserForm from '@/components/UserForm';
+import * as api from '@/lib/api/users';
 
-vi.mock('../../src/api/users');
+vi.mock('@/lib/api/users');
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-    useParams: () => ({}),
-  };
-});
+const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
 
 describe('UserForm', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockNavigate.mockClear();
+    mockPush.mockClear();
   });
 
   it('renders form fields', () => {
-    render(
-      <BrowserRouter>
-        <UserForm />
-      </BrowserRouter>
-    );
+    render(<UserForm />);
 
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
@@ -39,11 +37,7 @@ describe('UserForm', () => {
     const user = userEvent.setup();
     vi.mocked(api.createUser).mockResolvedValue({ id: 1, name: 'Alice', email: 'alice@example.com' });
 
-    render(
-      <BrowserRouter>
-        <UserForm />
-      </BrowserRouter>
-    );
+    render(<UserForm />);
 
     await user.type(screen.getByLabelText('Name'), 'Alice');
     await user.type(screen.getByLabelText('Email'), 'alice@example.com');
@@ -51,7 +45,7 @@ describe('UserForm', () => {
 
     await waitFor(() => {
       expect(api.createUser).toHaveBeenCalledWith({ name: 'Alice', email: 'alice@example.com' });
-      expect(mockNavigate).toHaveBeenCalledWith('/');
+      expect(mockPush).toHaveBeenCalledWith('/');
     });
   });
 
@@ -59,11 +53,7 @@ describe('UserForm', () => {
     const user = userEvent.setup();
     vi.mocked(api.createUser).mockRejectedValue(new Error('409: Email already exists'));
 
-    render(
-      <BrowserRouter>
-        <UserForm />
-      </BrowserRouter>
-    );
+    render(<UserForm />);
 
     await user.type(screen.getByLabelText('Name'), 'Bob');
     await user.type(screen.getByLabelText('Email'), 'alice@example.com');

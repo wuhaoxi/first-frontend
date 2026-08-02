@@ -1,14 +1,17 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getUsers, deleteUser } from '../api/users';
-import { User } from '../types/user';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { getUsers, deleteUser } from '@/lib/api/users';
+import { User } from '@/types/user';
 import './UserList.css';
 
 function UserList() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const fetchUsers = async () => {
     try {
@@ -43,11 +46,11 @@ function UserList() {
     <div>
       <div className="user-list-header">
         <h2>Users</h2>
-        <Link to="/users/new" className="btn-primary">New User</Link>
+        <Link href="/users/new" className="btn-primary">New User</Link>
       </div>
       {error && <p className="error">{error}</p>}
       {users.length === 0 ? (
-        <p>No users found. <Link to="/users/new">Create one</Link></p>
+        <p>No users found. <Link href="/users/new">Create one</Link></p>
       ) : (
         <table className="user-table">
           <thead>
@@ -63,7 +66,7 @@ function UserList() {
                 <td>{user.name}</td>
                 <td>{user.email}</td>
                 <td>
-                  <button onClick={() => navigate(`/users/${user.id}/edit`)}>Edit</button>
+                  <button onClick={() => router.push(`/users/${user.id}/edit`)}>Edit</button>
                   <button className="danger" onClick={() => handleDelete(user.id)}>Delete</button>
                 </td>
               </tr>

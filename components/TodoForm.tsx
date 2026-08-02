@@ -1,13 +1,14 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getTodoById, createTodo, updateTodo } from '../api/todos';
-import { CreateTodoRequest, UpdateTodoRequest, TodoPriority } from '../types/todo';
+import { useRouter } from 'next/navigation';
+import { getTodoById, createTodo, updateTodo } from '@/lib/api/todos';
+import { CreateTodoRequest, UpdateTodoRequest, TodoPriority } from '@/types/todo';
 import './TodoForm.css';
 
-function TodoForm() {
-  const { id } = useParams<{ id: string }>();
+function TodoForm({ id }: { id?: string }) {
   const isEditMode = Boolean(id);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -53,7 +54,7 @@ function TodoForm() {
         if (dueDate) data.dueDate = dueDate + ':00';
         await createTodo(data);
       }
-      navigate('/todos');
+      router.push('/todos');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     }
@@ -94,7 +95,7 @@ function TodoForm() {
         </div>
         <div className="form-actions">
           <button type="submit">{isEditMode ? 'Update' : 'Create'}</button>
-          <button type="button" onClick={() => navigate('/todos')}>Cancel</button>
+          <button type="button" onClick={() => router.push('/todos')}>Cancel</button>
         </div>
       </form>
     </div>

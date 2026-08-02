@@ -1,40 +1,36 @@
-# User Management Frontend
-
-React + Vite + TypeScript frontend for the User Management REST API.
-
-## Prerequisites
-
-- Node.js 18+
-- Backend running at `http://localhost:8080` (see `my-first-project-backend`)
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
+First, run the development server:
+
 ```bash
-npm install
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Available Scripts
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Type-check and produce production build |
-| `npm run preview` | Preview the production build locally |
-| `npm test` | Run test suite (Vitest) |
-| `npm run test:watch` | Run tests in watch mode |
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## API Proxy
+## Learn More
 
-The Vite dev server proxies `/api/*` requests to `http://localhost:8080`, so no CORS configuration is needed during development. In production, you'll need to configure a reverse proxy or serve both frontend and backend from the same origin.
+To learn more about Next.js, take a look at the following resources:
 
-## Tech Stack
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-- **React 18** — UI library
-- **React Router v6** — Client-side routing
-- **TypeScript 5** — Type safety
-- **Vite 5** — Build tool and dev server
-- **Vitest 2** — Test runner
-- **@testing-library/react** — Component testing
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

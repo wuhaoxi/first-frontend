@@ -18,7 +18,10 @@ The workspace-level config (`.qoder/`, `openspec/`, `AGENTS.md`) lives in the fr
 my-first-project/                ← Git repo: first-frontend (workspace root)
 ├── .qoder/                      ← AI agent config (skills, rules, commands)
 ├── openspec/                    ← Spec-driven development artifacts
-├── src/                         ← Frontend source (React + TypeScript)
+├── app/                         ← Next.js App Router pages + layout
+├── components/                  ← React components (TypeScript)
+├── lib/api/                     ← Typed fetch-based API clients
+├── types/                       ← TypeScript interfaces
 ├── tests/                       ← Frontend tests (Vitest)
 ├── backend/                     ← Git submodule → first-backend
 │   ├── src/main/java/           ← Backend source (Java 17, Spring Boot 3.3.6)
@@ -37,31 +40,32 @@ The workspace root **is** the frontend application. All files at the top level b
 
 | Attribute | Value |
 |-----------|-------|
-| Framework | React 18 + Vite 5 |
+| Framework | Next.js 14 (App Router) |
 | Language | TypeScript 5.x |
 | Test Runner | Vitest + @testing-library/react |
-| Router | React Router v6 |
+| Router | Next.js App Router (file-system routing) |
 | Package Manager | npm |
-| Dev Server | `npx vite` → `http://localhost:5173` |
-| Build | `npx tsc -b && npx vite build` |
+| Dev Server | `npm run dev` → `http://localhost:3000` |
+| Build | `npm run build` |
 | Test | `npx vitest run` |
 
 ### Frontend Key Paths
 
 | Path | Purpose |
 |------|---------|
-| `src/components/` | React components (UserList, UserForm, TodoList, TodoForm) |
-| `src/api/` | Typed fetch-based API clients (users.ts, todos.ts) |
-| `src/types/` | TypeScript interfaces (user.ts, todo.ts) |
-| `src/App.tsx` | Root component with routing |
-| `tests/` | Frontend test files (mirrors src/ structure) |
-| `vite.config.ts` | Vite config with `/api` proxy → `localhost:8080` |
+| `components/` | React components (UserList, UserForm, TodoList, TodoForm) |
+| `lib/api/` | Typed fetch-based API clients (users.ts, todos.ts) |
+| `types/` | TypeScript interfaces (user.ts, todo.ts) |
+| `app/` | App Router pages + root layout (replaces src/App.tsx routing) |
+| `tests/` | Frontend test files (mirrors lib/components structure) |
+| `next.config.mjs` | Next.js config with `/api` proxy → `localhost:8080` |
 
 ### Frontend Conventions
 
 - Field names use **camelCase** (aligned with backend)
 - API client throws `Error` with `${status}: ${message}` format on non-OK responses
-- Components use functional style with hooks (`useState`, `useEffect`, `useNavigate`)
+- Components use functional style with hooks (`useState`, `useEffect`), `useRouter` from `next/navigation`, `Link` from `next/link`
+- Every page and component module that uses hooks MUST include the `'use client'` directive
 
 ## Backend Submodule (`backend/`)
 
@@ -157,7 +161,7 @@ These commands live in `.qoder/commands/opsx/` and implement the specification-d
 - Use `/opsx:update` if the plan needs revision
 - Request code review between phases
 - Verify before declaring completion
-- **Frontend changes** → work in root `src/` and `tests/`
+- **Frontend changes** → work in `app/`, `components/`, `lib/`, `types/` and `tests/`
 - **Backend changes** → work in `backend/src/` and `backend/src/test/`
 
 ### Finishing Work
@@ -178,8 +182,11 @@ These commands live in `.qoder/commands/opsx/` and implement the specification-d
 | `openspec/specs/` | Living specifications — source of truth |
 | `openspec/changes/` | In-flight changes with proposals, specs, designs, tasks |
 | `openspec/templates/` | Reusable templates for change artifacts |
-| `src/` | Frontend source code (React) |
-| `tests/` | Frontend test files (mirror src/ structure) |
+| `app/` | Frontend pages + layout (App Router) |
+| `components/` | Frontend React components |
+| `lib/` | Frontend API clients |
+| `types/` | Frontend TypeScript interfaces |
+| `tests/` | Frontend test files |
 | `backend/` | Backend submodule (Spring Boot) |
 
 ## Rules

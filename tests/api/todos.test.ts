@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTodos, getTodoById, createTodo, updateTodo, toggleTodo, deleteTodo } from '../../src/api/todos';
+import { getTodos, getTodoById, createTodo, updateTodo, toggleTodo, deleteTodo } from '@/lib/api/todos';
 
 describe('todos API client', () => {
   beforeEach(() => {

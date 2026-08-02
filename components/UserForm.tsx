@@ -1,13 +1,14 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getUserById, createUser, updateUser } from '../api/users';
-import { CreateUserRequest, UpdateUserRequest } from '../types/user';
+import { useRouter } from 'next/navigation';
+import { getUserById, createUser, updateUser } from '@/lib/api/users';
+import { CreateUserRequest, UpdateUserRequest } from '@/types/user';
 import './UserForm.css';
 
-function UserForm() {
-  const { id } = useParams<{ id: string }>();
+function UserForm({ id }: { id?: string }) {
   const isEditMode = Boolean(id);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,7 +40,7 @@ function UserForm() {
         const data: CreateUserRequest = { name, email };
         await createUser(data);
       }
-      navigate('/');
+      router.push('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save user');
     }
@@ -74,7 +75,7 @@ function UserForm() {
         </div>
         <div className="form-actions">
           <button type="submit">{isEditMode ? 'Update' : 'Create'}</button>
-          <button type="button" onClick={() => navigate('/')}>Cancel</button>
+          <button type="button" onClick={() => router.push('/')}>Cancel</button>
         </div>
       </form>
     </div>

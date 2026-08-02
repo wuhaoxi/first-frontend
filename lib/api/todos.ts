@@ -1,4 +1,4 @@
-import { Todo, CreateTodoRequest, UpdateTodoRequest } from '../types/todo';
+import { Todo, CreateTodoRequest, UpdateTodoRequest } from '@/types/todo';
 
 const BASE_URL = '/api/todos';
 
