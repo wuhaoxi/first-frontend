@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import '../index.css';
-import '../App.css';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'User Management',
-  description: 'User and Todo management',
+  title: 'WanderChina',
+  description: 'Travel guides and community',
 };
 
 export default function RootLayout({
