@@ -1,6 +1,11 @@
 import type { FeaturedGuide, PopularCity, HotPost } from '@/types/home';
 
-const BASE_URL = '/api/home';
+// Server Components use the direct backend URL so that fetch does not get
+// short-circuited by Next.js internal resolution (which bypasses rewrites).
+// Client Components use the relative URL which goes through the Next.js proxy.
+const BASE_URL = process.env.API_BASE_URL
+  ? `${process.env.API_BASE_URL}/api/home`
+  : '/api/home';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -11,16 +16,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getFeaturedGuides(): Promise<FeaturedGuide[]> {
-  const response = await fetch(`${BASE_URL}/featured-guides`);
+  const response = await fetch(`${BASE_URL}/featured-guides`, { cache: 'no-store' });
   return handleResponse<FeaturedGuide[]>(response);
 }
 
 export async function getPopularDestinations(): Promise<PopularCity[]> {
-  const response = await fetch(`${BASE_URL}/popular-destinations`);
+  const response = await fetch(`${BASE_URL}/popular-destinations`, { cache: 'no-store' });
   return handleResponse<PopularCity[]>(response);
 }
 
 export async function getHotPosts(): Promise<HotPost[]> {
-  const response = await fetch(`${BASE_URL}/hot-posts`);
+  const response = await fetch(`${BASE_URL}/hot-posts`, { cache: 'no-store' });
   return handleResponse<HotPost[]>(response);
 }
