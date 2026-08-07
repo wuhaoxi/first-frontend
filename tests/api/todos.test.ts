@@ -12,14 +12,14 @@ describe('todos API client', () => {
 
     const result = await getTodos();
     expect(result).toEqual(mockTodos);
-    expect(fetch).toHaveBeenCalledWith('/api/todos');
+    expect(fetch).toHaveBeenCalledWith('/api/todos', { credentials: 'include' });
   });
 
   it('getTodos with status filter', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([]) });
 
     await getTodos('active');
-    expect(fetch).toHaveBeenCalledWith('/api/todos?status=active');
+    expect(fetch).toHaveBeenCalledWith('/api/todos?status=active', { credentials: 'include' });
   });
 
   it('getTodoById returns single todo', async () => {
@@ -28,7 +28,7 @@ describe('todos API client', () => {
 
     const result = await getTodoById(1);
     expect(result).toEqual(mockTodo);
-    expect(fetch).toHaveBeenCalledWith('/api/todos/1');
+    expect(fetch).toHaveBeenCalledWith('/api/todos/1', { credentials: 'include' });
   });
 
   it('createTodo sends POST', async () => {
@@ -41,6 +41,7 @@ describe('todos API client', () => {
     expect(fetch).toHaveBeenCalledWith('/api/todos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(req),
     });
   });
@@ -55,6 +56,7 @@ describe('todos API client', () => {
     expect(fetch).toHaveBeenCalledWith('/api/todos/1', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(req),
     });
   });
@@ -65,14 +67,14 @@ describe('todos API client', () => {
 
     const result = await toggleTodo(1);
     expect(result.completed).toBe(true);
-    expect(fetch).toHaveBeenCalledWith('/api/todos/1/toggle', { method: 'PATCH' });
+    expect(fetch).toHaveBeenCalledWith('/api/todos/1/toggle', { method: 'PATCH', credentials: 'include' });
   });
 
   it('deleteTodo sends DELETE', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 204, json: () => Promise.resolve(undefined) });
 
     await deleteTodo(1);
-    expect(fetch).toHaveBeenCalledWith('/api/todos/1', { method: 'DELETE' });
+    expect(fetch).toHaveBeenCalledWith('/api/todos/1', { method: 'DELETE', credentials: 'include' });
   });
 
   it('throws on non-OK response', async () => {

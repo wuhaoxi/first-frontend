@@ -14,12 +14,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getUsers(): Promise<User[]> {
-  const response = await fetch(BASE_URL);
+  const response = await fetch(BASE_URL, { credentials: 'include' });
   return handleResponse<User[]>(response);
 }
 
 export async function getUserById(id: number): Promise<User> {
-  const response = await fetch(`${BASE_URL}/${id}`);
+  const response = await fetch(`${BASE_URL}/${id}`, { credentials: 'include' });
   return handleResponse<User>(response);
 }
 
@@ -27,6 +27,7 @@ export async function createUser(data: CreateUserRequest): Promise<User> {
   const response = await fetch(BASE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<User>(response);
@@ -36,6 +37,7 @@ export async function updateUser(id: number, data: UpdateUserRequest): Promise<U
   const response = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<User>(response);
@@ -44,6 +46,7 @@ export async function updateUser(id: number, data: UpdateUserRequest): Promise<U
 export async function deleteUser(id: number): Promise<void> {
   const response = await fetch(`${BASE_URL}/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   return handleResponse<void>(response);
 }

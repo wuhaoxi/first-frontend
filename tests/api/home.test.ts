@@ -43,7 +43,7 @@ describe('home API client', () => {
 
     const result = await getFeaturedGuides();
     expect(result).toEqual(guides);
-    expect(fetch).toHaveBeenCalledWith('/api/home/featured-guides');
+    expect(fetch).toHaveBeenCalledWith('/api/home/featured-guides', { cache: 'no-store' });
   });
 
   it('getFeaturedGuides throws on non-OK response with message', async () => {
@@ -80,7 +80,7 @@ describe('home API client', () => {
 
     const result = await getPopularDestinations();
     expect(result).toEqual(cities);
-    expect(fetch).toHaveBeenCalledWith('/api/home/popular-destinations');
+    expect(fetch).toHaveBeenCalledWith('/api/home/popular-destinations', { cache: 'no-store' });
   });
 
   it('getPopularDestinations throws on non-OK', async () => {
@@ -106,7 +106,7 @@ describe('home API client', () => {
 
     const result = await getHotPosts();
     expect(result).toEqual(posts);
-    expect(fetch).toHaveBeenCalledWith('/api/home/hot-posts');
+    expect(fetch).toHaveBeenCalledWith('/api/home/hot-posts', { cache: 'no-store' });
   });
 
   it('getHotPosts throws on non-OK', async () => {

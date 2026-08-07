@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { AuthProvider } from '@/components/AuthContext';
+import NavBar from '@/components/NavBar';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,17 +16,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="app">
-          <header>
-            <h1>My App</h1>
-          </header>
-          <nav>
-            <Link href="/">Users</Link>
-            <span className="nav-sep"> | </span>
-            <Link href="/todos">Todos</Link>
-          </nav>
-          <main>{children}</main>
-        </div>
+        <AuthProvider>
+          <div className="app">
+            <header>
+              <h1>My App</h1>
+            </header>
+            <NavBar />
+            <main>{children}</main>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );

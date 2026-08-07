@@ -15,12 +15,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export async function getTodos(status?: string): Promise<Todo[]> {
   const url = status ? `${BASE_URL}?status=${status}` : BASE_URL;
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: 'include' });
   return handleResponse<Todo[]>(response);
 }
 
 export async function getTodoById(id: number): Promise<Todo> {
-  const response = await fetch(`${BASE_URL}/${id}`);
+  const response = await fetch(`${BASE_URL}/${id}`, { credentials: 'include' });
   return handleResponse<Todo>(response);
 }
 
@@ -28,6 +28,7 @@ export async function createTodo(data: CreateTodoRequest): Promise<Todo> {
   const response = await fetch(BASE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<Todo>(response);
@@ -37,17 +38,24 @@ export async function updateTodo(id: number, data: UpdateTodoRequest): Promise<T
   const response = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
   return handleResponse<Todo>(response);
 }
 
 export async function toggleTodo(id: number): Promise<Todo> {
-  const response = await fetch(`${BASE_URL}/${id}/toggle`, { method: 'PATCH' });
+  const response = await fetch(`${BASE_URL}/${id}/toggle`, {
+    method: 'PATCH',
+    credentials: 'include',
+  });
   return handleResponse<Todo>(response);
 }
 
 export async function deleteTodo(id: number): Promise<void> {
-  const response = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
+  const response = await fetch(`${BASE_URL}/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
   return handleResponse<void>(response);
 }

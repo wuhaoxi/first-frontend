@@ -16,7 +16,7 @@ describe('users API client', () => {
 
     const result = await getUsers();
     expect(result).toEqual(mockUsers);
-    expect(fetch).toHaveBeenCalledWith('/api/users');
+    expect(fetch).toHaveBeenCalledWith('/api/users', { credentials: 'include' });
   });
 
   it('getUserById returns a single user', async () => {
@@ -29,7 +29,7 @@ describe('users API client', () => {
 
     const result = await getUserById(1);
     expect(result).toEqual(mockUser);
-    expect(fetch).toHaveBeenCalledWith('/api/users/1');
+    expect(fetch).toHaveBeenCalledWith('/api/users/1', { credentials: 'include' });
   });
 
   it('createUser sends POST with JSON body', async () => {
@@ -46,6 +46,7 @@ describe('users API client', () => {
     expect(fetch).toHaveBeenCalledWith('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(request),
     });
   });
@@ -64,6 +65,7 @@ describe('users API client', () => {
     expect(fetch).toHaveBeenCalledWith('/api/users/1', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(request),
     });
   });
@@ -76,7 +78,7 @@ describe('users API client', () => {
     });
 
     await deleteUser(1);
-    expect(fetch).toHaveBeenCalledWith('/api/users/1', { method: 'DELETE' });
+    expect(fetch).toHaveBeenCalledWith('/api/users/1', { method: 'DELETE', credentials: 'include' });
   });
 
   it('throws error on non-OK response', async () => {
