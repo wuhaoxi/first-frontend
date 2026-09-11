@@ -1,5 +1,6 @@
 import type {
-  PostSummary,
+  PostListResponse,
+  GetPostsParams,
   PostResponse,
   CreatePostRequest,
   UpdatePostRequest,
@@ -18,9 +19,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-export async function getPosts(): Promise<PostSummary[]> {
-  const response = await fetch(BASE_URL, { credentials: 'include' });
-  return handleResponse<PostSummary[]>(response);
+export async function getPosts(params: GetPostsParams = {}): Promise<PostListResponse> {
+  const query = new URLSearchParams();
+  if (params.sort !== undefined) query.set('sort', params.sort);
+  if (params.page !== undefined) query.set('page', String(params.page));
+  if (params.size !== undefined) query.set('size', String(params.size));
+  if (params.cursor !== undefined) query.set('cursor', params.cursor);
+  const queryString = query.toString();
+  const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL;
+  const response = await fetch(url, { credentials: 'include' });
+  return handleResponse<PostListResponse>(response);
 }
 
 export async function getPostById(id: number): Promise<PostResponse> {

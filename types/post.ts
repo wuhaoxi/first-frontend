@@ -1,6 +1,6 @@
 export type PostStatus = 'DRAFT' | 'PUBLISHED';
 
-export interface PostSummary {
+export interface PostBase {
   id: number;
   title: string;
   coverImage: string | null;
@@ -11,9 +11,15 @@ export interface PostSummary {
   updatedAt: string;
 }
 
-export interface PostResponse extends PostSummary {
+export interface PostSummary extends PostBase {
+  upVoteCount: number;
+  bookmarkCount: number;
+}
+
+export interface PostResponse extends PostBase {
   content: string;
   status: PostStatus;
+  bookmarked: boolean | null;
 }
 
 export interface CreatePostRequest {
@@ -30,4 +36,23 @@ export interface UpdatePostRequest {
   tags?: string[];
   coverImage?: string;
   status?: PostStatus;
+}
+
+export type PostSort = 'latest' | 'upvotes' | 'comments';
+
+export interface GetPostsParams {
+  sort?: PostSort;
+  page?: number;
+  size?: number;
+  cursor?: string;
+}
+
+export interface PostListResponse {
+  content: PostSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  nextCursor: string | null;
+  hasMore: boolean;
 }

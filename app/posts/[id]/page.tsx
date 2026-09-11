@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthContext';
+import BookmarkButton from '@/components/post/BookmarkButton';
+import CommentSection from '@/components/post/CommentSection';
+import VoteButtons from '@/components/post/VoteButtons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPostById } from '@/lib/api/posts';
 import { formatRelativeTime } from '@/lib/time';
@@ -54,6 +57,14 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
   const isAuthor = user?.id === post.authorId;
 
+  const refreshPostMeta = () => {
+    getPostById(post.id)
+      .then(setPost)
+      .catch(() => {
+        // Keep the current view on failure; counts reconcile on the next page load.
+      });
+  };
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       {/* Cover image */}
@@ -80,6 +91,12 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
           {post.status}
         </span>
+      </div>
+
+      {/* Interaction controls */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <VoteButtons postId={post.id} />
+        <BookmarkButton postId={post.id} bookmarked={post.bookmarked} />
       </div>
 
       {/* Tags */}
@@ -111,6 +128,11 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       {/* Markdown content */}
       <div className="prose max-w-none" data-color-mode="light">
         <div dangerouslySetInnerHTML={{ __html: renderMarkdown(post.content) }} />
+      </div>
+
+      {/* Comments */}
+      <div className="mt-10">
+        <CommentSection postId={post.id} commentCount={post.commentCount} onCommentMutated={refreshPostMeta} />
       </div>
 
       {/* Timestamps */}
