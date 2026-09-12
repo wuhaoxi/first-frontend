@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Bookmark, ImageIcon, MessageCircle, ThumbsUp } from 'lucide-react';
 import type { PostSummary } from '@/types/post';
+import { formatCompact } from '@/lib/format';
 import { formatRelativeTime } from '@/lib/time';
 
 export function PostCard({ post }: { post: PostSummary }) {
@@ -53,18 +54,24 @@ export function PostCard({ post }: { post: PostSummary }) {
 
         {/* Meta */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1" aria-label="Upvotes">
-            <ThumbsUp className="h-3 w-3" />
-            {post.upVoteCount}
-          </span>
-          <span className="flex items-center gap-1" aria-label="Comments">
-            <MessageCircle className="h-3 w-3" />
-            {post.commentCount}
-          </span>
-          <span className="flex items-center gap-1" aria-label="Bookmarks">
-            <Bookmark className="h-3 w-3" />
-            {post.bookmarkCount}
-          </span>
+          {post.upVoteCount > 0 && (
+            <span className="flex items-center gap-1" aria-label="Upvotes">
+              <ThumbsUp className="h-3 w-3" />
+              {formatCompact(post.upVoteCount)}
+            </span>
+          )}
+          {post.commentCount > 0 && (
+            <span className="flex items-center gap-1" aria-label="Comments">
+              <MessageCircle className="h-3 w-3" />
+              {formatCompact(post.commentCount)}
+            </span>
+          )}
+          {post.bookmarkCount > 0 && (
+            <span className="flex items-center gap-1" aria-label="Bookmarks">
+              <Bookmark className="h-3 w-3" />
+              {formatCompact(post.bookmarkCount)}
+            </span>
+          )}
           <span>{formatRelativeTime(post.createdAt)}</span>
         </div>
       </div>

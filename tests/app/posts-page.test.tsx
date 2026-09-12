@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PostsPage from '@/app/posts/page';
 import { getPosts } from '@/lib/api/posts';
@@ -19,6 +19,48 @@ const { mockAuth } = vi.hoisted(() => ({
 vi.mock('@/components/AuthContext', () => ({
   useAuth: () => mockAuth(),
 }));
+
+class MockIntersectionObserver implements IntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  readonly root: Element | Document | null = null;
+  readonly rootMargin = '200px 0px';
+  readonly thresholds: ReadonlyArray<number> = [0];
+
+  readonly observe = vi.fn();
+  readonly unobserve = vi.fn();
+  readonly disconnect = vi.fn();
+  readonly takeRecords = vi.fn((): IntersectionObserverEntry[] => []);
+
+  constructor(private readonly callback: IntersectionObserverCallback) {
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  trigger(isIntersecting = true): void {
+    if (this.disconnect.mock.calls.length > 0) {
+      return;
+    }
+    this.callback([{ isIntersecting } as IntersectionObserverEntry], this);
+  }
+}
+
+async function triggerIntersection(): Promise<void> {
+  await act(async () => {
+    const observer =
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1];
+    observer?.trigger();
+  });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 function makePost(id: number, title: string): PostSummary {
   return {
@@ -53,6 +95,8 @@ describe('PostsPage', () => {
     vi.clearAllMocks();
     vi.mocked(getPosts).mockReset();
     mockAuth.mockImplementation(() => ({ user: null, isLoading: false }));
+    MockIntersectionObserver.instances = [];
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   });
 
   it('fetches the latest page and renders items in order', async () => {
@@ -97,13 +141,51 @@ describe('PostsPage', () => {
     expect(screen.queryByText('Most liked story')).not.toBeInTheDocument();
   });
 
-  it('loads more with the cursor for the latest sort', async () => {
+  it('resets the list when the sort changes', async () => {
     vi.mocked(getPosts)
       .mockResolvedValueOnce(
         makeEnvelope({
           content: [makePost(2, 'Newest story')],
-          totalElements: 2,
-          totalPages: 2,
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(1, 'Older story')] }))
+      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(3, 'Most liked story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+    await triggerIntersection();
+    await screen.findByText('Older story');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Most Liked' }));
+
+    expect(await screen.findByText('Most liked story')).toBeInTheDocument();
+    expect(getPosts).toHaveBeenLastCalledWith({ sort: 'upvotes', page: 0, size: 20 });
+    expect(screen.queryByText('Newest story')).not.toBeInTheDocument();
+    expect(screen.queryByText('Older story')).not.toBeInTheDocument();
+  });
+
+  it('renders no manual load-more control', async () => {
+    vi.mocked(getPosts).mockResolvedValue(
+      makeEnvelope({
+        content: [makePost(2, 'Newest story')],
+        nextCursor: 'CURSOR1',
+        hasMore: true,
+      })
+    );
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+
+  it('auto-loads the next cursor page for the latest sort when the sentinel becomes visible', async () => {
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
           nextCursor: 'CURSOR1',
           hasMore: true,
         })
@@ -113,15 +195,14 @@ describe('PostsPage', () => {
     render(<PostsPage />);
     await screen.findByText('Newest story');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await triggerIntersection();
 
     expect(await screen.findByText('Older story')).toBeInTheDocument();
     expect(getPosts).toHaveBeenLastCalledWith({ sort: 'latest', size: 20, cursor: 'CURSOR1' });
     expect(screen.getByText('Newest story')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
   });
 
-  it('loads more by page number for count sorts', async () => {
+  it('auto-loads the next offset page for count sorts when the sentinel becomes visible', async () => {
     vi.mocked(getPosts)
       .mockResolvedValueOnce(makeEnvelope())
       .mockResolvedValueOnce(
@@ -140,54 +221,72 @@ describe('PostsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Most Liked' }));
     await screen.findByText('Liked A');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await triggerIntersection();
 
     expect(await screen.findByText('Liked B')).toBeInTheDocument();
     expect(getPosts).toHaveBeenLastCalledWith({ sort: 'upvotes', page: 1, size: 20 });
     expect(screen.getByText('Liked A')).toBeInTheDocument();
   });
 
-  it('resets the list when the sort changes', async () => {
+  it('does not issue another request while a load is already in flight', async () => {
+    const loadMoreDeferred = deferred<PostListResponse>();
     vi.mocked(getPosts)
       .mockResolvedValueOnce(
-        makeEnvelope({ content: [makePost(2, 'Newest story')], nextCursor: 'CURSOR1', hasMore: true })
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
       )
-      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(1, 'Older story')] }))
-      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(3, 'Most liked story')] }));
+      .mockReturnValueOnce(loadMoreDeferred.promise);
 
     render(<PostsPage />);
     await screen.findByText('Newest story');
-    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    await screen.findByText('Older story');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Most Liked' }));
+    await triggerIntersection();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
 
-    expect(await screen.findByText('Most liked story')).toBeInTheDocument();
-    expect(getPosts).toHaveBeenLastCalledWith({ sort: 'upvotes', page: 0, size: 20 });
-    expect(screen.queryByText('Newest story')).not.toBeInTheDocument();
-    expect(screen.queryByText('Older story')).not.toBeInTheDocument();
+    await triggerIntersection();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      loadMoreDeferred.resolve(makeEnvelope({ content: [makePost(1, 'Older story')] }));
+    });
+    expect(await screen.findByText('Older story')).toBeInTheDocument();
   });
 
-  it('shows an inline error when loading more fails and keeps the button usable', async () => {
+  it('does not fetch when the first page has no more items', async () => {
+    vi.mocked(getPosts).mockResolvedValue(makeEnvelope({ content: [makePost(2, 'Only story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Only story');
+
+    await triggerIntersection();
+
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops issuing requests after a load-more failure', async () => {
     vi.mocked(getPosts)
       .mockResolvedValueOnce(
-        makeEnvelope({ content: [makePost(2, 'Newest story')], nextCursor: 'CURSOR1', hasMore: true })
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
       )
-      .mockRejectedValueOnce(new Error('500: Load failed'))
-      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(1, 'Older story')] }));
+      .mockRejectedValueOnce(new Error('500: Load failed'));
 
     render(<PostsPage />);
     await screen.findByText('Newest story');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
-
+    await triggerIntersection();
     expect(await screen.findByText('500: Load failed')).toBeInTheDocument();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
+
+    await triggerIntersection();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
     expect(screen.getByText('Newest story')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
-
-    expect(await screen.findByText('Older story')).toBeInTheDocument();
-    expect(screen.queryByText('500: Load failed')).not.toBeInTheDocument();
   });
 
   it('shows the empty state with a create link', async () => {
@@ -248,5 +347,155 @@ describe('PostsPage', () => {
       'href',
       '/posts/create'
     );
+  });
+
+  it('shows three skeleton cards while an auto-load is in flight', async () => {
+    const loadMoreDeferred = deferred<PostListResponse>();
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockReturnValueOnce(loadMoreDeferred.promise);
+
+    const { container } = render(<PostsPage />);
+    await screen.findByText('Newest story');
+
+    await triggerIntersection();
+
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(9);
+
+    await act(async () => {
+      loadMoreDeferred.resolve(makeEnvelope({ content: [makePost(1, 'Older story')] }));
+    });
+
+    expect(await screen.findByText('Older story')).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(0);
+  });
+
+  it('shows the end-of-list indicator when the first page is exhausted', async () => {
+    vi.mocked(getPosts).mockResolvedValue(makeEnvelope({ content: [makePost(2, 'Only story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Only story');
+
+    expect(screen.getByText("You've reached the end")).toBeInTheDocument();
+  });
+
+  it('shows the end-of-list indicator after the last page is appended', async () => {
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(1, 'Older story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+    expect(screen.queryByText("You've reached the end")).not.toBeInTheDocument();
+
+    await triggerIntersection();
+
+    expect(await screen.findByText('Older story')).toBeInTheDocument();
+    expect(screen.getByText("You've reached the end")).toBeInTheDocument();
+  });
+
+  it('offers a retry after a load-more failure and resumes auto-loading', async () => {
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockRejectedValueOnce(new Error('500: Load failed'))
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(1, 'Older story')],
+          nextCursor: 'CURSOR2',
+          hasMore: true,
+        })
+      )
+      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(9, 'Oldest story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+
+    await triggerIntersection();
+    expect(await screen.findByText('500: Load failed')).toBeInTheDocument();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
+
+    await triggerIntersection();
+    expect(vi.mocked(getPosts)).toHaveBeenCalledTimes(2);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByText('Older story')).toBeInTheDocument();
+    expect(screen.queryByText('500: Load failed')).not.toBeInTheDocument();
+    expect(getPosts).toHaveBeenLastCalledWith({ sort: 'latest', size: 20, cursor: 'CURSOR1' });
+
+    await triggerIntersection();
+
+    expect(await screen.findByText('Oldest story')).toBeInTheDocument();
+    expect(getPosts).toHaveBeenLastCalledWith({ sort: 'latest', size: 20, cursor: 'CURSOR2' });
+  });
+
+  it('skips duplicate items when appending a page', async () => {
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockResolvedValueOnce(
+        makeEnvelope({ content: [makePost(2, 'Newest story'), makePost(1, 'Older story')] })
+      );
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+
+    await triggerIntersection();
+
+    expect(await screen.findByText('Older story')).toBeInTheDocument();
+    expect(screen.getAllByText('Newest story')).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2);
+  });
+
+  it('discards a stale load-more response after the sort changes', async () => {
+    const staleDeferred = deferred<PostListResponse>();
+    vi.mocked(getPosts)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makePost(2, 'Newest story')],
+          nextCursor: 'CURSOR1',
+          hasMore: true,
+        })
+      )
+      .mockReturnValueOnce(staleDeferred.promise)
+      .mockResolvedValueOnce(makeEnvelope({ content: [makePost(3, 'Most liked story')] }));
+
+    render(<PostsPage />);
+    await screen.findByText('Newest story');
+
+    await triggerIntersection();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Most Liked' }));
+    expect(await screen.findByText('Most liked story')).toBeInTheDocument();
+
+    await act(async () => {
+      staleDeferred.resolve(makeEnvelope({ content: [makePost(1, 'Older story')] }));
+    });
+
+    expect(screen.queryByText('Older story')).not.toBeInTheDocument();
+    expect(screen.getByText('Most liked story')).toBeInTheDocument();
   });
 });

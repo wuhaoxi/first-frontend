@@ -25,14 +25,31 @@ describe('PostCard', () => {
     expect(screen.getByLabelText('Bookmarks')).toHaveTextContent('2');
   });
 
-  it('renders zero counts', () => {
+  it('hides all statistics when every count is zero and keeps the relative time', () => {
     render(
       <PostCard post={{ ...BASE_POST, upVoteCount: 0, commentCount: 0, bookmarkCount: 0 }} />
     );
 
-    expect(screen.getByLabelText('Upvotes')).toHaveTextContent('0');
-    expect(screen.getByLabelText('Comments')).toHaveTextContent('0');
-    expect(screen.getByLabelText('Bookmarks')).toHaveTextContent('0');
+    expect(screen.queryByLabelText('Upvotes')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Comments')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Bookmarks')).not.toBeInTheDocument();
+    expect(screen.getByText(/ago|just now/)).toBeInTheDocument();
+  });
+
+  it('renders only the non-zero statistics', () => {
+    render(
+      <PostCard post={{ ...BASE_POST, upVoteCount: 0, commentCount: 3, bookmarkCount: 2 }} />
+    );
+
+    expect(screen.queryByLabelText('Upvotes')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Comments')).toHaveTextContent('3');
+    expect(screen.getByLabelText('Bookmarks')).toHaveTextContent('2');
+  });
+
+  it('formats large counts compactly', () => {
+    render(<PostCard post={{ ...BASE_POST, upVoteCount: 1200 }} />);
+
+    expect(screen.getByLabelText('Upvotes')).toHaveTextContent('1.2k');
   });
 
   it('links to the post detail page', () => {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthContext';
 import { PostCard } from '@/components/PostCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPosts } from '@/lib/api/posts';
+import { cn } from '@/lib/utils';
 import type { PostSort, PostSummary } from '@/types/post';
 
 const PAGE_SIZE = 20;
@@ -15,6 +16,18 @@ const SORT_TABS: { value: PostSort; label: string }[] = [
   { value: 'upvotes', label: 'Most Liked' },
   { value: 'comments', label: 'Most Commented' },
 ];
+
+const SKELETON_KEYS = [1, 2, 3];
+
+function PostCardSkeletonCard() {
+  return (
+    <div className="rounded-lg border p-4 space-y-3">
+      <Skeleton className="h-48 w-full rounded-lg" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+    </div>
+  );
+}
 
 export default function PostsPage() {
   const { user } = useAuth();
@@ -29,24 +42,41 @@ export default function PostsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
-  const fetchFirstPage = (nextSort: PostSort) => {
+  const generationRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchFirstPage = useCallback((nextSort: PostSort) => {
+    const generation = ++generationRef.current;
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
     setLoadMoreError(null);
     getPosts({ sort: nextSort, page: 0, size: PAGE_SIZE })
       .then((res) => {
+        if (generationRef.current !== generation) {
+          return;
+        }
         setPosts(res.content);
         setPage(res.page);
         setNextCursor(res.nextCursor);
         setHasMore(res.hasMore);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load posts'))
-      .finally(() => setLoading(false));
-  };
+      .catch((err) => {
+        if (generationRef.current !== generation) {
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'Failed to load posts');
+      })
+      .finally(() => {
+        if (generationRef.current === generation) {
+          setLoading(false);
+        }
+      });
+  }, []);
 
   useEffect(() => {
     fetchFirstPage('latest');
-  }, []);
+  }, [fetchFirstPage]);
 
   const handleSortChange = (nextSort: PostSort) => {
     if (nextSort === sort) {
@@ -59,7 +89,11 @@ export default function PostsPage() {
     fetchFirstPage(nextSort);
   };
 
-  const handleLoadMore = () => {
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    const generation = generationRef.current;
     setLoadingMore(true);
     setLoadMoreError(null);
     const request =
@@ -68,16 +102,53 @@ export default function PostsPage() {
         : getPosts({ sort, page: page + 1, size: PAGE_SIZE });
     request
       .then((res) => {
-        setPosts((prev) => [...prev, ...res.content]);
+        if (generationRef.current !== generation) {
+          return;
+        }
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((post) => post.id));
+          const fresh = res.content.filter((post) => !existingIds.has(post.id));
+          return [...prev, ...fresh];
+        });
         setPage(res.page);
         setNextCursor(res.nextCursor);
         setHasMore(res.hasMore);
       })
-      .catch((err) =>
-        setLoadMoreError(err instanceof Error ? err.message : 'Failed to load more posts')
-      )
-      .finally(() => setLoadingMore(false));
-  };
+      .catch((err) => {
+        if (generationRef.current !== generation) {
+          return;
+        }
+        setLoadMoreError(err instanceof Error ? err.message : 'Failed to load more posts');
+      })
+      .finally(() => {
+        if (generationRef.current === generation) {
+          setLoadingMore(false);
+        }
+      });
+  }, [loading, loadingMore, hasMore, sort, nextCursor, page]);
+
+  const observerEligible =
+    !loading && !loadingMore && hasMore && !error && !loadMoreError && posts.length > 0;
+
+  useEffect(() => {
+    if (!observerEligible) {
+      return;
+    }
+    const node = sentinelRef.current;
+    if (!node) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [observerEligible, loadMore]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -109,11 +180,12 @@ export default function PostsPage() {
             type="button"
             aria-pressed={sort === tab.value}
             onClick={() => handleSortChange(tab.value)}
-            className={
+            className={cn(
+              'rounded-lg px-3 py-1.5 text-sm font-medium',
               sort === tab.value
-                ? 'rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground'
-                : 'rounded-lg border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary'
-            }
+                ? 'bg-primary text-primary-foreground'
+                : 'border text-muted-foreground hover:bg-secondary'
+            )}
           >
             {tab.label}
           </button>
@@ -123,12 +195,8 @@ export default function PostsPage() {
       {/* Loading */}
       {loading && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-lg border p-4 space-y-3">
-              <Skeleton className="h-48 w-full rounded-lg" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </div>
+          {SKELETON_KEYS.map((key) => (
+            <PostCardSkeletonCard key={key} />
           ))}
         </div>
       )}
@@ -167,22 +235,33 @@ export default function PostsPage() {
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
+          {loadingMore &&
+            SKELETON_KEYS.map((key) => <PostCardSkeletonCard key={`skeleton-${key}`} />)}
         </div>
       )}
 
-      {/* Load more */}
-      {!loading && !error && hasMore && (
+      {/* Auto-load sentinel */}
+      <div ref={sentinelRef} aria-hidden="true" />
+
+      {/* Load-more error */}
+      {!loading && !error && loadMoreError && (
         <div className="mt-8 text-center">
-          {loadMoreError && <p className="mb-3 text-sm text-destructive">{loadMoreError}</p>}
+          <p className="mb-3 text-sm text-destructive" role="alert">
+            {loadMoreError}
+          </p>
           <button
             type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+            onClick={loadMore}
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-secondary"
           >
-            {loadingMore ? 'Loading...' : 'Load more'}
+            Retry
           </button>
         </div>
+      )}
+
+      {/* End of list */}
+      {!loading && !error && posts.length > 0 && !hasMore && (
+        <p className="mt-8 text-center text-sm text-muted-foreground">You&apos;ve reached the end</p>
       )}
     </div>
   );
