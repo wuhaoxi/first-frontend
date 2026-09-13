@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getFeaturedGuides, getPopularDestinations, getHotPosts } from '@/lib/api/home';
-import type { FeaturedGuide, PopularCity, HotPost } from '@/types/home';
+import { getFeaturedGuides, getHotPosts } from '@/lib/api/home';
+import type { FeaturedGuide, HotPost } from '@/types/home';
 
 const mockGuide: FeaturedGuide = {
   id: 1,
@@ -9,13 +9,6 @@ const mockGuide: FeaturedGuide = {
   coverImageUrl: 'https://example.com/chengdu.jpg',
   recommendation: 'Best spicy food tour',
   slug: 'chengdu-guide',
-};
-
-const mockCity: PopularCity = {
-  slug: 'shanghai',
-  name: 'Shanghai',
-  coverImageUrl: 'https://example.com/shanghai.jpg',
-  guideCount: 12,
 };
 
 const mockPost: HotPost = {
@@ -66,32 +59,6 @@ describe('home API client', () => {
     });
 
     await expect(getFeaturedGuides()).rejects.toThrow('503: Service Unavailable');
-  });
-
-  // --- getPopularDestinations ---
-
-  it('getPopularDestinations returns cities on success', async () => {
-    const cities: PopularCity[] = [mockCity];
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(cities),
-    });
-
-    const result = await getPopularDestinations();
-    expect(result).toEqual(cities);
-    expect(fetch).toHaveBeenCalledWith('/api/home/popular-destinations', { cache: 'no-store' });
-  });
-
-  it('getPopularDestinations throws on non-OK', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      statusText: 'Not Found',
-      json: () => Promise.resolve({ message: 'No destinations found' }),
-    });
-
-    await expect(getPopularDestinations()).rejects.toThrow('404: No destinations found');
   });
 
   // --- getHotPosts ---

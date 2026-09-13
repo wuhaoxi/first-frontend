@@ -16,10 +16,15 @@ describe('HomepageFunctionNavigation', () => {
     expect(link).toHaveAttribute('href', '/community');
   });
 
-  it('guides card is a link to /guides', () => {
+  it('guides card is a link to /attractions', () => {
     render(<HomepageFunctionNavigation />);
     const link = screen.getByRole('link', { name: /景点攻略/i });
-    expect(link).toHaveAttribute('href', '/guides');
+    expect(link).toHaveAttribute('href', '/attractions');
+  });
+
+  it('guides card description matches the attractions destination', () => {
+    render(<HomepageFunctionNavigation />);
+    expect(screen.getByText('Browse top attractions across China')).toBeInTheDocument();
   });
 
   it('AI card is a button that calls onOpenAiAssistant', async () => {

@@ -2,71 +2,109 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HomepagePopularDestinations } from '@/components/home/HomepagePopularDestinations';
-import type { PopularCity } from '@/types/home';
+import type { AttractionSummary } from '@/types/attraction';
 
-const mockCities: PopularCity[] = [
-  { slug: 'chengdu', name: 'Chengdu', coverImageUrl: '/chengdu.jpg', guideCount: 10 },
-  { slug: 'beijing', name: 'Beijing', coverImageUrl: '/beijing.jpg', guideCount: 8 },
-  { slug: 'shanghai', name: 'Shanghai', coverImageUrl: null, guideCount: 5 },
-  { slug: 'xian', name: 'Xian', coverImageUrl: '/xian.jpg', guideCount: 0 },
+function makeAttraction(overrides: Partial<AttractionSummary> = {}): AttractionSummary {
+  return {
+    id: 1,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'forbidden-city',
+    name: 'Forbidden City',
+    nameZh: '故宫',
+    category: 'HISTORICAL_SITE',
+    tags: [],
+    city: 'Beijing',
+    citySlug: 'beijing',
+    summary: 'Imperial palace at the heart of Beijing.',
+    coverImageUrl: null,
+    bookingRequired: false,
+    ...overrides,
+  };
+}
+
+const mockAttractions: AttractionSummary[] = [
+  makeAttraction({ id: 1, slug: 'forbidden-city', name: 'Forbidden City', nameZh: '故宫', city: 'Beijing' }),
+  makeAttraction({ id: 2, slug: 'terracotta-army', name: 'Terracotta Army', nameZh: '兵马俑', city: "Xi'an" }),
+  makeAttraction({ id: 3, slug: 'west-lake', name: 'West Lake', nameZh: '西湖', city: 'Hangzhou' }),
+  makeAttraction({ id: 4, slug: 'the-bund', name: 'The Bund', nameZh: '外滩', city: 'Shanghai' }),
 ];
 
 describe('HomepagePopularDestinations', () => {
-  it('renders all city names', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    expect(screen.getByText('Chengdu')).toBeInTheDocument();
+  it('renders attraction names, Chinese names and city labels', () => {
+    render(<HomepagePopularDestinations attractions={mockAttractions} />);
+
+    expect(screen.getByText('Forbidden City')).toBeInTheDocument();
+    expect(screen.getByText('故宫')).toBeInTheDocument();
+    expect(screen.getByText('Terracotta Army')).toBeInTheDocument();
+    expect(screen.getByText('兵马俑')).toBeInTheDocument();
+    expect(screen.getByText('West Lake')).toBeInTheDocument();
+    expect(screen.getByText('The Bund')).toBeInTheDocument();
     expect(screen.getByText('Beijing')).toBeInTheDocument();
+    expect(screen.getByText("Xi'an")).toBeInTheDocument();
+    expect(screen.getByText('Hangzhou')).toBeInTheDocument();
     expect(screen.getByText('Shanghai')).toBeInTheDocument();
-    expect(screen.getByText('Xian')).toBeInTheDocument();
   });
 
-  it('shows "N guides" label for cities with guides', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    expect(screen.getByText('10 guides')).toBeInTheDocument();
-    expect(screen.getByText('8 guides')).toBeInTheDocument();
-    expect(screen.getByText('5 guides')).toBeInTheDocument();
+  it('makes every card a link to /attractions/{slug}', () => {
+    render(<HomepagePopularDestinations attractions={mockAttractions} />);
+
+    expect(screen.getByRole('link', { name: /Forbidden City/i })).toHaveAttribute(
+      'href',
+      '/attractions/forbidden-city'
+    );
+    expect(screen.getByRole('link', { name: /West Lake/i })).toHaveAttribute(
+      'href',
+      '/attractions/west-lake'
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(4);
   });
 
-  it('shows "Coming soon" for zero-guide city', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+  it('shows a letter placeholder when coverImageUrl is null', () => {
+    const { container } = render(<HomepagePopularDestinations attractions={mockAttractions} />);
+
+    // All four fixtures have null covers — each card shows its first letter
+    const placeholders = Array.from(container.querySelectorAll('.text-2xl')).map(
+      (el) => el.textContent
+    );
+    expect(placeholders).toEqual(['F', 'T', 'W', 'T']);
   });
 
-  it('card with guides is a link to /guides?city={slug}', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    const link = screen.getByRole('link', { name: /Chengdu/i });
-    expect(link).toHaveAttribute('href', '/guides?city=chengdu');
+  it('renders an image when coverImageUrl is set', () => {
+    render(
+      <HomepagePopularDestinations
+        attractions={[makeAttraction({ coverImageUrl: '/fc.jpg' })]}
+      />
+    );
+
+    expect(screen.getByRole('img')).toHaveAttribute('alt', 'Forbidden City');
   });
 
-  it('zero-guide card is a plain div (not a link, not focusable)', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    const xianCard = screen.getByText('Xian').closest('a');
-    expect(xianCard).toBeNull(); // Should not be inside a link
+  it('calls onAttractionClick with the slug on card click', async () => {
+    const onAttractionClick = vi.fn();
+    render(
+      <HomepagePopularDestinations attractions={mockAttractions} onAttractionClick={onAttractionClick} />
+    );
+
+    await userEvent.click(screen.getByRole('link', { name: /West Lake/i }));
+
+    expect(onAttractionClick).toHaveBeenCalledWith('west-lake');
   });
 
-  it('shows placeholder element when coverImageUrl is null', () => {
-    render(<HomepagePopularDestinations cities={mockCities} />);
-    // Shanghai has coverImageUrl: null, should render a letter placeholder div
-    expect(screen.getByText('S')).toBeInTheDocument();
+  it('defensively truncates to 6 attractions', () => {
+    const many = Array.from({ length: 8 }, (_, i) =>
+      makeAttraction({ id: i + 1, slug: `spot-${i}`, name: `Spot ${i}` })
+    );
+
+    render(<HomepagePopularDestinations attractions={many} />);
+
+    expect(screen.getAllByRole('link')).toHaveLength(6);
+    expect(screen.queryByText('Spot 6')).not.toBeInTheDocument();
   });
 
-  it('calls onCityClick with slug on card click', async () => {
-    const onCityClick = vi.fn();
-    render(<HomepagePopularDestinations cities={mockCities} onCityClick={onCityClick} />);
-    const link = screen.getByRole('link', { name: /Chengdu/i });
-    await userEvent.click(link);
-    expect(onCityClick).toHaveBeenCalledWith('chengdu');
-  });
+  it('shows an empty-state message and no grid when the array is empty', () => {
+    const { container } = render(<HomepagePopularDestinations attractions={[]} />);
 
-  it('truncates to max 6 cities', () => {
-    const manyCities = Array.from({ length: 8 }, (_, i) => ({
-      slug: `city-${i}`,
-      name: `City ${i}`,
-      coverImageUrl: null,
-      guideCount: 1,
-    }));
-    const { container } = render(<HomepagePopularDestinations cities={manyCities} />);
-    const cards = container.querySelectorAll('a');
-    expect(cards.length).toBeLessThanOrEqual(6);
+    expect(screen.getByText('No attractions available right now')).toBeInTheDocument();
+    expect(container.querySelectorAll('a')).toHaveLength(0);
   });
 });

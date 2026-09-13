@@ -12,7 +12,7 @@ import {
 test.describe('Homepage — Hot Posts (homepage-hot-posts.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, citiesFail: false, postsFail: false });
+    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
   });
 

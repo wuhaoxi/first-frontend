@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
-import { getFeaturedGuides, getPopularDestinations, getHotPosts } from '@/lib/api/home';
+import { getFeaturedGuides, getHotPosts } from '@/lib/api/home';
+import { getPopularAttractions } from '@/lib/api/attractions';
 import { SectionContainer } from '@/components/home/SectionContainer';
 import { HomepageSearchEntry } from '@/components/home/HomepageSearchEntry';
 import { HomepageAiAssistantEntry } from '@/components/home/HomepageAiAssistantEntry';
@@ -30,10 +31,10 @@ async function EditorsPicksSection() {
 
 async function PopularDestinationsSection() {
   try {
-    const cities = await getPopularDestinations();
+    const attractions = await getPopularAttractions();
     return (
-      <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'success', data: cities }}>
-        <HomepagePopularDestinations cities={cities} />
+      <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'success', data: attractions }}>
+        <HomepagePopularDestinations attractions={attractions} />
       </SectionContainer>
     );
   } catch (e: unknown) {

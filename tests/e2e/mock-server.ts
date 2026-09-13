@@ -6,13 +6,91 @@ export const MOCK_GUIDES = [
   { id: 2, title: 'Beijing History Walk', cityName: 'Beijing', coverImageUrl: null, recommendation: 'Forbidden City deep dive', slug: 'beijing-history' },
 ];
 
-export const MOCK_CITIES = [
-  { slug: 'chengdu', name: 'Chengdu', coverImageUrl: null, guideCount: 12 },
-  { slug: 'beijing', name: 'Beijing', coverImageUrl: null, guideCount: 8 },
-  { slug: 'shanghai', name: 'Shanghai', coverImageUrl: null, guideCount: 5 },
-  { slug: 'guangzhou', name: 'Guangzhou', coverImageUrl: null, guideCount: 3 },
-  { slug: 'hangzhou', name: 'Hangzhou', coverImageUrl: null, guideCount: 2 },
-  { slug: 'xian', name: "Xi'an", coverImageUrl: null, guideCount: 0 },
+export const MOCK_ATTRACTIONS = [
+  {
+    id: 1,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'forbidden-city',
+    name: 'Forbidden City',
+    nameZh: '故宫',
+    category: 'HISTORICAL_SITE',
+    tags: ['unesco'],
+    city: 'Beijing',
+    citySlug: 'beijing',
+    summary: 'Imperial palace at the heart of Beijing.',
+    coverImageUrl: null,
+    bookingRequired: true,
+  },
+  {
+    id: 2,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'terracotta-army',
+    name: 'Terracotta Army',
+    nameZh: '兵马俑',
+    category: 'HISTORICAL_SITE',
+    tags: ['unesco'],
+    city: "Xi'an",
+    citySlug: 'xian',
+    summary: 'Thousands of life-size warriors guarding an emperor.',
+    coverImageUrl: null,
+    bookingRequired: true,
+  },
+  {
+    id: 3,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'west-lake',
+    name: 'West Lake',
+    nameZh: '西湖',
+    category: 'NATURE',
+    tags: ['unesco'],
+    city: 'Hangzhou',
+    citySlug: 'hangzhou',
+    summary: 'The lake that inspired a thousand poems.',
+    coverImageUrl: null,
+    bookingRequired: false,
+  },
+  {
+    id: 4,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'the-bund',
+    name: 'The Bund',
+    nameZh: '外滩',
+    category: 'STREET_DISTRICT',
+    tags: ['skyline'],
+    city: 'Shanghai',
+    citySlug: 'shanghai',
+    summary: 'Riverside promenade facing the Pudong skyline.',
+    coverImageUrl: null,
+    bookingRequired: false,
+  },
+  {
+    id: 5,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'chengdu-panda-base',
+    name: 'Chengdu Panda Base',
+    nameZh: '成都大熊猫基地',
+    category: 'NATURE',
+    tags: ['pandas'],
+    city: 'Chengdu',
+    citySlug: 'chengdu',
+    summary: 'Meet giant pandas in a research park.',
+    coverImageUrl: null,
+    bookingRequired: true,
+  },
+  {
+    id: 6,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'longji-rice-terraces',
+    name: 'Longji Rice Terraces',
+    nameZh: '龙脊梯田',
+    category: 'NATURE',
+    tags: ['hiking'],
+    city: 'Guilin',
+    citySlug: 'guilin',
+    summary: 'Dragon-backbone terraces carved into the hills.',
+    coverImageUrl: null,
+    bookingRequired: false,
+  },
 ];
 
 export const MOCK_POSTS = [
@@ -24,24 +102,24 @@ export const MOCK_POSTS = [
 // ---- Stateful Mock Behavior ----
 interface MockState {
   guidesFail: boolean;
-  citiesFail: boolean;
+  attractionsFail: boolean;
   postsFail: boolean;
   guidesDelay: number;
-  citiesDelay: number;
+  attractionsDelay: number;
   postsDelay: number;
   postsEmpty: boolean;
-  citiesEmpty: boolean;
+  attractionsEmpty: boolean;
 }
 
 const state: MockState = {
   guidesFail: false,
-  citiesFail: false,
+  attractionsFail: false,
   postsFail: false,
   guidesDelay: 0,
-  citiesDelay: 0,
+  attractionsDelay: 0,
   postsDelay: 0,
   postsEmpty: false,
-  citiesEmpty: false,
+  attractionsEmpty: false,
 };
 
 // Track requests for parallel-fetch verification
@@ -67,13 +145,13 @@ const server = http.createServer(async (req, res) => {
   if (url === '/__mock/configure' && method === 'POST') {
     const body = (await jsonBody(req)) as Partial<MockState>;
     if (typeof body.guidesFail === 'boolean') state.guidesFail = body.guidesFail;
-    if (typeof body.citiesFail === 'boolean') state.citiesFail = body.citiesFail;
+    if (typeof body.attractionsFail === 'boolean') state.attractionsFail = body.attractionsFail;
     if (typeof body.postsFail === 'boolean') state.postsFail = body.postsFail;
     if (typeof body.guidesDelay === 'number') state.guidesDelay = body.guidesDelay;
-    if (typeof body.citiesDelay === 'number') state.citiesDelay = body.citiesDelay;
+    if (typeof body.attractionsDelay === 'number') state.attractionsDelay = body.attractionsDelay;
     if (typeof body.postsDelay === 'number') state.postsDelay = body.postsDelay;
     if (typeof body.postsEmpty === 'boolean') state.postsEmpty = body.postsEmpty;
-    if (typeof body.citiesEmpty === 'boolean') state.citiesEmpty = body.citiesEmpty;
+    if (typeof body.attractionsEmpty === 'boolean') state.attractionsEmpty = body.attractionsEmpty;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, state }));
     return;
@@ -82,13 +160,13 @@ const server = http.createServer(async (req, res) => {
   // ---- Reset state ----
   if (url === '/__mock/reset' && method === 'POST') {
     state.guidesFail = false;
-    state.citiesFail = false;
+    state.attractionsFail = false;
     state.postsFail = false;
     state.guidesDelay = 0;
-    state.citiesDelay = 0;
+    state.attractionsDelay = 0;
     state.postsDelay = 0;
     state.postsEmpty = false;
-    state.citiesEmpty = false;
+    state.attractionsEmpty = false;
     trackedRequests.length = 0;
     res.writeHead(200);
     res.end(JSON.stringify({ ok: true }));
@@ -129,18 +207,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url === '/api/home/popular-destinations') {
-    trackedRequests.push('popular-destinations');
-    if (state.citiesDelay > 0) await new Promise((r) => setTimeout(r, state.citiesDelay));
-    if (state.citiesFail) {
+  if (url === '/api/attractions/popular') {
+    trackedRequests.push('attractions-popular');
+    if (state.attractionsDelay > 0) await new Promise((r) => setTimeout(r, state.attractionsDelay));
+    if (state.attractionsFail) {
       res.writeHead(500, corsHeaders);
       res.end(JSON.stringify({ message: 'Internal Server Error' }));
-    } else if (state.citiesEmpty) {
+    } else if (state.attractionsEmpty) {
       res.writeHead(200, corsHeaders);
       res.end(JSON.stringify([]));
     } else {
       res.writeHead(200, corsHeaders);
-      res.end(JSON.stringify(MOCK_CITIES));
+      res.end(JSON.stringify(MOCK_ATTRACTIONS));
     }
     return;
   }

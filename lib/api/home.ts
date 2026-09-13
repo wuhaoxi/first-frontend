@@ -1,4 +1,4 @@
-import type { FeaturedGuide, PopularCity, HotPost } from '@/types/home';
+import type { FeaturedGuide, HotPost } from '@/types/home';
 
 // Server Components use the direct backend URL so that fetch does not get
 // short-circuited by Next.js internal resolution (which bypasses rewrites).
@@ -18,11 +18,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function getFeaturedGuides(): Promise<FeaturedGuide[]> {
   const response = await fetch(`${BASE_URL}/featured-guides`, { cache: 'no-store' });
   return handleResponse<FeaturedGuide[]>(response);
-}
-
-export async function getPopularDestinations(): Promise<PopularCity[]> {
-  const response = await fetch(`${BASE_URL}/popular-destinations`, { cache: 'no-store' });
-  return handleResponse<PopularCity[]>(response);
 }
 
 export async function getHotPosts(): Promise<HotPost[]> {

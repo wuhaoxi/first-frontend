@@ -21,13 +21,6 @@ export interface FeaturedGuide {
   slug: string;
 }
 
-export interface PopularCity {
-  slug: string;
-  name: string;
-  coverImageUrl: string | null;
-  guideCount: number;
-}
-
 export interface HotPost {
   id: number;
   title: string;

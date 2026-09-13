@@ -11,7 +11,7 @@ import {
 test.describe('Homepage — Function Navigation (homepage-function-navigation.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, citiesFail: false, postsFail: false });
+    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
     await waitForSection(page, 'function-navigation');
   });
@@ -58,13 +58,13 @@ test.describe('Homepage — Function Navigation (homepage-function-navigation.md
   });
 
   /* ------------------------------------------------------------------
-   * WHEN/THEN FN-4: 点击景点攻略卡片 → /guides
+   * WHEN/THEN FN-4: 点击景点攻略卡片 → /attractions
    *   WHEN  用户点击"景点攻略"卡片
-   *   THEN  页面跳转至 /guides
+   *   THEN  页面跳转至 /attractions
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN FN-4: clicking 景点攻略 card navigates to /guides', async ({ page }) => {
-    await page.locator(`${FUNC_NAV_ID} a[href="/guides"]`).click();
-    await page.waitForURL('**/guides', { timeout: 10000 });
+  test('WHEN/THEN FN-4: clicking 景点攻略 card navigates to /attractions', async ({ page }) => {
+    await page.locator(`${FUNC_NAV_ID} a[href="/attractions"]`).click();
+    await page.waitForURL('**/attractions', { timeout: 10000 });
   });
 
   /* ------------------------------------------------------------------

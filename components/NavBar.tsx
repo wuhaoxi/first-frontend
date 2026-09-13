@@ -10,6 +10,8 @@ export default function NavBar() {
     <nav className="flex items-center gap-3 text-sm">
       <Link href="/" className="hover:underline">Home</Link>
       <span className="text-muted-foreground">|</span>
+      <Link href="/attractions" className="hover:underline">Attractions</Link>
+      <span className="text-muted-foreground">|</span>
       <Link href="/posts" className="hover:underline">Posts</Link>
       <span className="text-muted-foreground">|</span>
       <Link href="/todos" className="hover:underline">Todos</Link>

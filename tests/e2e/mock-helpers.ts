@@ -23,13 +23,13 @@ const MOCK = 'http://localhost:8080';
 
 export interface MockConfig {
   guidesFail?: boolean;
-  citiesFail?: boolean;
+  attractionsFail?: boolean;
   postsFail?: boolean;
   guidesDelay?: number;
-  citiesDelay?: number;
+  attractionsDelay?: number;
   postsDelay?: number;
   postsEmpty?: boolean;
-  citiesEmpty?: boolean;
+  attractionsEmpty?: boolean;
 }
 
 export async function setupMock(page: Page, config: MockConfig) {

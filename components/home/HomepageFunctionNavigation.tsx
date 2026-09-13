@@ -29,10 +29,10 @@ const DEFAULT_ITEMS: FunctionNavItem[] = [
   {
     key: 'guides',
     title: '景点攻略',
-    description: 'Discover detailed guides for top destinations',
+    description: 'Browse top attractions across China',
     icon: <Map className="h-8 w-8" aria-hidden="true" />,
     action: 'link',
-    href: '/guides',
+    href: '/attractions',
   },
   {
     key: 'ai-assistant',

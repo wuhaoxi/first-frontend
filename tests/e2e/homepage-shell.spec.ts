@@ -26,10 +26,10 @@ const MOCK = 'http://localhost:8080';
 
 interface MockConfig {
   guidesFail?: boolean;
-  citiesFail?: boolean;
+  attractionsFail?: boolean;
   postsFail?:  boolean;
   guidesDelay?: number;
-  citiesDelay?: number;
+  attractionsDelay?: number;
   postsDelay?:  number;
 }
 
@@ -86,7 +86,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
   // ---- beforeEach: reset mocks → configure success → desktop → navigate ----
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, citiesFail: false, postsFail: false });
+    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
     await page.setViewportSize(DESKTOP);
     await page.goto('/', { waitUntil: 'domcontentloaded' });
   });
@@ -106,9 +106,9 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    *   THEN  该区块显示错误占位与 Retry 按钮
    *   AND   编辑精选、热门帖子等其他区块正常渲染
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN #2: failed popular-destinations shows alert + Retry; others healthy', async ({ page }) => {
-    // Override mock: popular-destinations fails
-    await setupMock(page, { citiesFail: true });
+  test('WHEN/THEN #2: failed popular-attractions shows alert + Retry; others healthy', async ({ page }) => {
+    // Override mock: attractions popular API fails
+    await setupMock(page, { attractionsFail: true });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Static sections always render
@@ -136,7 +136,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #3: skeletons appear during loading; no layout shift', async ({ page }) => {
     // 3 s delay so we can observe the skeleton frame
-    await setupMock(page, { guidesDelay: 3000, citiesDelay: 3000, postsDelay: 3000 });
+    await setupMock(page, { guidesDelay: 3000, attractionsDelay: 3000, postsDelay: 3000 });
 
     // `commit` returns as soon as initial HTML arrives (suspense fallbacks)
     await page.goto('/', { waitUntil: 'commit' });
@@ -204,7 +204,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    *   AND   各 API 请求并行发起
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #5: page loads ≤ 2 s; 3 data APIs fire in parallel', async ({ page }) => {
-    await setupMock(page, { guidesDelay: 100, citiesDelay: 100, postsDelay: 100 });
+    await setupMock(page, { guidesDelay: 100, attractionsDelay: 100, postsDelay: 100 });
 
     const t0 = Date.now();
     await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -215,7 +215,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
     expect(Date.now() - t0).toBeLessThanOrEqual(2000);
 
     const log = await fetchMockLog(page);
-    for (const ep of ['featured-guides', 'popular-destinations', 'hot-posts']) {
+    for (const ep of ['featured-guides', 'attractions-popular', 'hot-posts']) {
       expect(log).toContain(ep);
     }
   });
@@ -227,7 +227,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #6: Tab reaches all interactive elements; they accept input', async ({ page }) => {
     // All APIs fail → 3 retry buttons + static controls = rich interaction surface
-    await setupMock(page, { guidesFail: true, citiesFail: true, postsFail: true });
+    await setupMock(page, { guidesFail: true, attractionsFail: true, postsFail: true });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#editors-picks [role="alert"]', { timeout: 15000 });
 
