@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Heart } from 'lucide-react';
 import BookmarkButton from '@/components/post/BookmarkButton';
-import * as interactions from '@/lib/api/interactions';
+import type { ApiResponse } from '@/lib/api/client';
 
-vi.mock('@/lib/api/interactions');
 vi.mock('@/components/AuthContext', () => ({
   useAuth: () => mockAuth(),
 }));
@@ -26,111 +26,158 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-function ok(bookmarked: boolean) {
-  return { ok: true as const, data: { bookmarked }, message: null };
+function resolved(active: boolean): ApiResponse<boolean> {
+  return { ok: true, data: active, message: null };
 }
 
-function fail(message: string) {
-  return { ok: false as const, data: null, message };
+function rejected(message: string): ApiResponse<boolean> {
+  return { ok: false, data: null, message };
 }
 
 describe('BookmarkButton', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
     vi.clearAllMocks();
-    mockPush.mockClear();
     mockAuth.mockImplementation(() => ({
       user: { id: 1, name: 'Alice', email: 'a@x.com' },
       isLoading: false,
     }));
   });
 
-  it('renders pressed state when already bookmarked', () => {
-    render(<BookmarkButton postId={1} bookmarked={true} />);
+  it('renders the active state with the filled icon', () => {
+    const { container } = render(<BookmarkButton active={true} toggle={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'true');
+    const button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-label', 'Remove bookmark');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(container.querySelector('.lucide-bookmark-check')).toBeInTheDocument();
   });
 
-  it('renders unpressed state when not bookmarked', () => {
-    render(<BookmarkButton postId={1} bookmarked={false} />);
+  it('renders the inactive state with the outline icon', () => {
+    const { container } = render(<BookmarkButton active={false} toggle={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'false');
+    const button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-label', 'Bookmark');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(container.querySelector('.lucide-bookmark')).toBeInTheDocument();
   });
 
-  it('renders unpressed state when bookmarked is unknown (guest)', () => {
-    render(<BookmarkButton postId={1} bookmarked={null} />);
+  it('renders the inactive state when active is unknown (guest)', () => {
+    render(<BookmarkButton active={null} toggle={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'false');
+    const button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('toggles optimistically and reconciles with the server response', async () => {
-    vi.mocked(interactions.toggleBookmark).mockResolvedValue(ok(true));
+  it('toggles optimistically, reconciles with the resolved value and notifies onChanged', async () => {
+    const toggle = vi.fn().mockResolvedValue(resolved(true));
+    const onChanged = vi.fn();
 
-    render(<BookmarkButton postId={1} bookmarked={false} />);
+    render(<BookmarkButton active={false} toggle={toggle} onChanged={onChanged} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /bookmark/i }));
+    await userEvent.click(screen.getByRole('button'));
 
-    expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'true');
-    expect(interactions.toggleBookmark).toHaveBeenCalledWith(1);
-
+    expect(toggle).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+      expect(onChanged).toHaveBeenCalledWith(true);
     });
   });
 
-  it('flips back off when toggling a bookmarked post', async () => {
-    vi.mocked(interactions.toggleBookmark).mockResolvedValue(ok(false));
+  it('flips back off when toggling an active bookmark', async () => {
+    const toggle = vi.fn().mockResolvedValue(resolved(false));
+    const onChanged = vi.fn();
 
-    render(<BookmarkButton postId={1} bookmarked={true} />);
+    render(<BookmarkButton active={true} toggle={toggle} onChanged={onChanged} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /bookmark/i }));
+    await userEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
+      expect(onChanged).toHaveBeenCalledWith(false);
     });
   });
 
-  it('redirects guests to /login without calling the API', async () => {
+  it('redirects guests to /login without calling toggle', async () => {
     mockAuth.mockImplementation(() => ({ user: null, isLoading: false }));
+    const toggle = vi.fn();
 
-    render(<BookmarkButton postId={1} bookmarked={false} />);
+    render(<BookmarkButton active={false} toggle={toggle} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /bookmark/i }));
+    await userEvent.click(screen.getByRole('button'));
 
     expect(mockPush).toHaveBeenCalledWith('/login');
-    expect(interactions.toggleBookmark).not.toHaveBeenCalled();
+    expect(toggle).not.toHaveBeenCalled();
   });
 
-  it('rolls back and shows inline error when the toggle fails', async () => {
-    vi.mocked(interactions.toggleBookmark).mockResolvedValue(fail('Could not bookmark'));
+  it('rolls back and shows an inline error when the toggle fails', async () => {
+    const toggle = vi.fn().mockResolvedValue(rejected('Could not bookmark'));
+    const onChanged = vi.fn();
 
-    render(<BookmarkButton postId={1} bookmarked={false} />);
+    render(<BookmarkButton active={false} toggle={toggle} onChanged={onChanged} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /bookmark/i }));
+    await userEvent.click(screen.getByRole('button'));
 
-    await waitFor(() => {
-      expect(screen.getByText('Could not bookmark')).toBeInTheDocument();
-    });
-    expect(screen.getByRole('button', { name: /bookmark/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByText('Could not bookmark')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
+    expect(onChanged).not.toHaveBeenCalled();
   });
 
   it('disables the button while the toggle is pending', async () => {
-    let resolveToggle: (value: Awaited<ReturnType<typeof interactions.toggleBookmark>>) => void;
-    vi.mocked(interactions.toggleBookmark).mockReturnValue(
-      new Promise<Awaited<ReturnType<typeof interactions.toggleBookmark>>>((resolve) => {
-        resolveToggle = resolve;
-      })
+    let resolveToggle!: (value: ApiResponse<boolean>) => void;
+    const toggle = vi.fn(
+      () =>
+        new Promise<ApiResponse<boolean>>((resolve) => {
+          resolveToggle = resolve;
+        })
     );
 
-    render(<BookmarkButton postId={1} bookmarked={false} />);
+    render(<BookmarkButton active={false} toggle={toggle} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /bookmark/i }));
+    await userEvent.click(screen.getByRole('button'));
 
-    expect(screen.getByRole('button', { name: /bookmark/i })).toBeDisabled();
+    expect(screen.getByRole('button')).toBeDisabled();
 
-    resolveToggle!(ok(true));
+    resolveToggle(resolved(true));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /bookmark/i })).toBeEnabled();
+      expect(screen.getByRole('button')).toBeEnabled();
     });
+  });
+
+  it('honors custom labels for both states', async () => {
+    const toggle = vi.fn().mockResolvedValue(resolved(true));
+
+    render(
+      <BookmarkButton
+        active={false}
+        toggle={toggle}
+        labels={{ add: 'Add to favorites', remove: 'Remove from favorites' }}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Remove from favorites' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+    });
+  });
+
+  it('renders custom icons when provided', () => {
+    const { container, unmount } = render(
+      <BookmarkButton active={false} toggle={vi.fn()} icon={Heart} activeIcon={Heart} />
+    );
+
+    expect(container.querySelector('.lucide-heart')).toBeInTheDocument();
+    expect(container.querySelector('.lucide-bookmark')).not.toBeInTheDocument();
+
+    unmount();
+
+    const activeRender = render(
+      <BookmarkButton active={true} toggle={vi.fn()} icon={Heart} activeIcon={Heart} />
+    );
+
+    expect(activeRender.container.querySelector('.lucide-heart')).toBeInTheDocument();
   });
 });

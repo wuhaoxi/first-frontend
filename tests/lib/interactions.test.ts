@@ -8,6 +8,8 @@ import {
   createComment,
   createReply,
   deleteComment,
+  postCommentApi,
+  toggleBookmarkState,
 } from '@/lib/api/interactions';
 import { authFetch, ApiResponse } from '@/lib/api/client';
 
@@ -117,5 +119,52 @@ describe('interactions API', () => {
     await deleteComment(9);
 
     expect(authFetchMock).toHaveBeenCalledWith('/api/comments/9', { method: 'DELETE' });
+  });
+
+  it('toggleBookmarkState maps bookmarked:true to data:true', async () => {
+    authFetchMock.mockResolvedValue(ok({ bookmarked: true }));
+
+    const result = await toggleBookmarkState(1);
+
+    expect(authFetchMock).toHaveBeenCalledWith('/api/posts/1/bookmark', { method: 'POST' });
+    expect(result).toEqual({ ok: true, data: true, message: null });
+  });
+
+  it('toggleBookmarkState maps bookmarked:false to data:false', async () => {
+    authFetchMock.mockResolvedValue(ok({ bookmarked: false }));
+
+    const result = await toggleBookmarkState(1);
+
+    expect(result).toEqual({ ok: true, data: false, message: null });
+  });
+
+  it('toggleBookmarkState propagates failures', async () => {
+    authFetchMock.mockResolvedValue({ ok: false, data: null, message: 'Unauthorized' });
+
+    const result = await toggleBookmarkState(1);
+
+    expect(result).toEqual({ ok: false, data: null, message: 'Unauthorized' });
+  });
+
+  it('postCommentApi.createComment delegates to the post comments endpoint', async () => {
+    authFetchMock.mockResolvedValue(
+      ok({ id: 10, postId: 1, userId: 1, content: 'hello', parentCommentId: null, replyCount: 0, createdAt: '', updatedAt: '' })
+    );
+
+    const result = await postCommentApi.createComment(1, 'hello');
+
+    expect(authFetchMock).toHaveBeenCalledWith('/api/posts/1/comments', {
+      method: 'POST',
+      body: JSON.stringify({ content: 'hello' }),
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('postCommentApi.getTopLevelComments delegates with pagination params', async () => {
+    authFetchMock.mockResolvedValue(ok({ content: [], page: 1, size: 10, totalElements: 0, totalPages: 0 }));
+
+    await postCommentApi.getTopLevelComments(1, 1, 10);
+
+    expect(authFetchMock).toHaveBeenCalledWith('/api/posts/1/comments?page=1&size=10');
   });
 });

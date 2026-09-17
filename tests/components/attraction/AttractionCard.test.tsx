@@ -17,6 +17,9 @@ function makeAttraction(overrides: Partial<AttractionSummary> = {}): AttractionS
     summary: 'Imperial palace at the heart of Beijing.',
     coverImageUrl: null,
     bookingRequired: false,
+    ratingScore: 4.9,
+    favoriteCount: 5100,
+    heatScore: 98,
     ...overrides,
   };
 }

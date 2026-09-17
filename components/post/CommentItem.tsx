@@ -2,17 +2,17 @@
 
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import type { CommentResponse } from '@/types/interactions';
+import type { CommentView } from '@/types/interactions';
 import { formatRelativeTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
 interface CommentItemProps {
-  comment: CommentResponse;
+  comment: CommentView;
   /** Resolved author name, or the "User #{id}" fallback */
   authorName: string;
   layer?: 1 | 2;
   currentUserId: number | null;
-  onReplyClick: (comment: CommentResponse) => void;
+  onReplyClick: (comment: CommentView) => void;
   /** Returns an error message on failure, or null on success */
   onDelete: (commentId: number) => Promise<string | null>;
 }

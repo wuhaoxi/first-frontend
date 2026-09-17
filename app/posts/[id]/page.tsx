@@ -8,6 +8,7 @@ import CommentSection from '@/components/post/CommentSection';
 import VoteButtons from '@/components/post/VoteButtons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getPostById } from '@/lib/api/posts';
+import { postCommentApi, toggleBookmarkState } from '@/lib/api/interactions';
 import { formatRelativeTime } from '@/lib/time';
 import type { PostResponse } from '@/types/post';
 
@@ -96,7 +97,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       {/* Interaction controls */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <VoteButtons postId={post.id} />
-        <BookmarkButton postId={post.id} bookmarked={post.bookmarked} />
+        <BookmarkButton active={post.bookmarked} toggle={() => toggleBookmarkState(post.id)} />
       </div>
 
       {/* Tags */}
@@ -132,7 +133,12 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
       {/* Comments */}
       <div className="mt-10">
-        <CommentSection postId={post.id} commentCount={post.commentCount} onCommentMutated={refreshPostMeta} />
+        <CommentSection
+          targetId={post.id}
+          api={postCommentApi}
+          commentCount={post.commentCount}
+          onCommentMutated={refreshPostMeta}
+        />
       </div>
 
       {/* Timestamps */}

@@ -19,6 +19,9 @@ export interface AttractionSummary {
   summary: string;
   coverImageUrl: string | null;
   bookingRequired: boolean;
+  ratingScore: number;
+  favoriteCount: number;
+  heatScore: number;
 }
 
 export interface AttractionResponse extends AttractionSummary {
@@ -32,6 +35,9 @@ export interface AttractionResponse extends AttractionSummary {
   bookingNote: string | null;
   suggestedDuration: string | null;
   updatedAt: string | null;
+  gallery: string[];
+  commentCount: number;
+  favorited: boolean | null;
 }
 
 export interface GetAttractionsParams {

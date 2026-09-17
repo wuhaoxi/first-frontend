@@ -4,29 +4,25 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthContext';
 import CommentInput from '@/components/post/CommentInput';
 import CommentList, { CommentThread } from '@/components/post/CommentList';
-import {
-  getTopLevelComments,
-  getReplies,
-  createComment,
-  createReply,
-  deleteComment,
-} from '@/lib/api/interactions';
 import { getUserById } from '@/lib/api/users';
-import type { CommentResponse } from '@/types/interactions';
+import type { CommentApiAdapter, CommentView } from '@/types/interactions';
 
 const PAGE_SIZE = 20;
 
 interface CommentSectionProps {
-  postId: number;
+  /** Comment target id (post id or attraction id) */
+  targetId: number;
   commentCount: number;
-  /** Called after any successful comment mutation so the page can refresh post meta */
+  /** Injected comment API adapter — the component stays target-agnostic */
+  api: CommentApiAdapter;
+  /** Called after any successful comment mutation so the page can refresh target meta */
   onCommentMutated: () => void;
 }
 
-export default function CommentSection({ postId, commentCount, onCommentMutated }: CommentSectionProps) {
+export default function CommentSection({ targetId, commentCount, api, onCommentMutated }: CommentSectionProps) {
   const { user } = useAuth();
 
-  const [topItems, setTopItems] = useState<CommentResponse[]>([]);
+  const [topItems, setTopItems] = useState<CommentView[]>([]);
   const [topTotalElements, setTopTotalElements] = useState(0);
   const [topTotalPages, setTopTotalPages] = useState(0);
   const [topPage, setTopPage] = useState(0);
@@ -40,7 +36,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
   const [names, setNames] = useState<Map<number, string>>(new Map());
   const namesRef = useRef<Map<number, string>>(new Map());
 
-  const [replyingTo, setReplyingTo] = useState<CommentResponse | null>(null);
+  const [replyingTo, setReplyingTo] = useState<CommentView | null>(null);
 
   const mergeNames = useCallback((idsToFetch: number[]) => {
     const missing = Array.from(new Set(idsToFetch)).filter((id) => !namesRef.current.has(id));
@@ -59,7 +55,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
   }, []);
 
   const loadThreadsFor = useCallback(
-    async (parents: CommentResponse[]) => {
+    async (parents: CommentView[]) => {
       const toLoad = parents.filter((c) => c.replyCount > 0);
       if (toLoad.length === 0) {
         return;
@@ -71,7 +67,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
         return next;
       });
 
-      const settled = await Promise.allSettled(toLoad.map((c) => getReplies(c.id, 0, PAGE_SIZE)));
+      const settled = await Promise.allSettled(toLoad.map((c) => api.getReplies(c.id, 0, PAGE_SIZE)));
 
       setThreads((prev) => {
         const next = new Map(prev);
@@ -99,14 +95,14 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
       );
       mergeNames(allFetched.map((c) => c.userId));
     },
-    [mergeNames]
+    [api, mergeNames]
   );
 
   const refreshAll = useCallback(async () => {
     setInitialLoading(true);
     setLoadError(null);
     try {
-      const res = await getTopLevelComments(postId, 0, PAGE_SIZE);
+      const res = await api.getTopLevelComments(targetId, 0, PAGE_SIZE);
       if (!res.ok || !res.data) {
         setLoadError(res?.message ?? 'Failed to load comments');
         return;
@@ -124,7 +120,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
     } finally {
       setInitialLoading(false);
     }
-  }, [postId, mergeNames, loadThreadsFor]);
+  }, [targetId, api, mergeNames, loadThreadsFor]);
 
   useEffect(() => {
     void refreshAll();
@@ -136,7 +132,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
     }
     setLoadingMoreTop(true);
     try {
-      const res = await getTopLevelComments(postId, topPage + 1, PAGE_SIZE);
+      const res = await api.getTopLevelComments(targetId, topPage + 1, PAGE_SIZE);
       if (!res.ok || !res.data) {
         return;
       }
@@ -159,7 +155,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
     }
     setLoadingReplies((prev) => new Set(prev).add(parentId));
     try {
-      const res = await getReplies(parentId, thread.page + 1, PAGE_SIZE);
+      const res = await api.getReplies(parentId, thread.page + 1, PAGE_SIZE);
       if (!res.ok || !res.data) {
         return;
       }
@@ -190,8 +186,8 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
 
   const handleSubmit = async (content: string): Promise<string | null> => {
     const res = replyingTo
-      ? await createReply(replyingTo.id, content)
-      : await createComment(postId, content);
+      ? await api.createReply(replyingTo.id, content)
+      : await api.createComment(targetId, content);
     if (!res.ok) {
       return res.message ?? 'Failed to post';
     }
@@ -201,7 +197,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
   };
 
   const handleDelete = async (commentId: number): Promise<string | null> => {
-    const res = await deleteComment(commentId);
+    const res = await api.deleteComment(commentId);
     if (!res.ok) {
       return res.message ?? 'Failed to delete comment';
     }
@@ -210,7 +206,7 @@ export default function CommentSection({ postId, commentCount, onCommentMutated 
     return null;
   };
 
-  const handleReplyClick = (comment: CommentResponse) => {
+  const handleReplyClick = (comment: CommentView) => {
     setReplyingTo(comment);
   };
 

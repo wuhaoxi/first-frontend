@@ -20,6 +20,9 @@ const mockSummary: AttractionSummary = {
   summary: 'Imperial palace at the heart of Beijing.',
   coverImageUrl: null,
   bookingRequired: true,
+  ratingScore: 4.9,
+  favoriteCount: 5100,
+  heatScore: 98,
 };
 
 const mockDetail: AttractionResponse = {
@@ -34,6 +37,9 @@ const mockDetail: AttractionResponse = {
   bookingNote: 'Book with passport 7 days ahead',
   suggestedDuration: '3-4 hours',
   updatedAt: '2026-09-02T12:00:00Z',
+  gallery: ['https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/fc.jpg/960px-fc.jpg'],
+  commentCount: 3,
+  favorited: null,
 };
 
 describe('attractions API client', () => {

@@ -74,7 +74,9 @@ describe('CommentInput', () => {
     expect(screen.getByRole('button', { name: /post/i })).toBeDisabled();
   });
 
-  it('shows a live character counter capped at 2000', async () => {
+  // 2500 keystrokes against a controlled textarea take ~4s in jsdom; the default
+  // 5s budget is not enough under full-suite load, so this test gets extra time.
+  it('shows a live character counter capped at 2000', { timeout: 15000 }, async () => {
     render(<CommentInput onSubmit={okSubmit()} replyToName={null} />);
 
     const input = screen.getByPlaceholderText(/write a comment/i);

@@ -2,9 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import PostDetailPage from '@/app/posts/[id]/page';
 import { getPostById } from '@/lib/api/posts';
+import { postCommentApi, toggleBookmarkState } from '@/lib/api/interactions';
 import type { PostResponse } from '@/types/post';
 
 vi.mock('@/lib/api/posts');
+
+vi.mock('@/lib/api/interactions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/interactions')>();
+  return { ...actual, toggleBookmarkState: vi.fn() };
+});
 
 vi.mock('@/components/AuthContext', () => ({
   useAuth: () => ({ user: null, isLoading: false }),
@@ -16,12 +22,27 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-const { lastCommentSectionProps } = vi.hoisted(() => ({
-  lastCommentSectionProps: { current: null as { postId: number; commentCount: number; onCommentMutated: () => void } | null },
+const { lastCommentSectionProps, lastBookmarkButtonProps } = vi.hoisted(() => ({
+  lastCommentSectionProps: {
+    current: null as {
+      targetId: number;
+      commentCount: number;
+      api: unknown;
+      onCommentMutated: () => void;
+    } | null,
+  },
+  lastBookmarkButtonProps: {
+    current: null as { active: boolean | null; toggle: () => Promise<unknown> } | null,
+  },
 }));
 
 vi.mock('@/components/post/CommentSection', () => ({
-  default: (props: { postId: number; commentCount: number; onCommentMutated: () => void }) => {
+  default: (props: {
+    targetId: number;
+    commentCount: number;
+    api: unknown;
+    onCommentMutated: () => void;
+  }) => {
     lastCommentSectionProps.current = props;
     return <div data-testid="comment-section">Comment section</div>;
   },
@@ -32,9 +53,10 @@ vi.mock('@/components/post/VoteButtons', () => ({
 }));
 
 vi.mock('@/components/post/BookmarkButton', () => ({
-  default: ({ postId, bookmarked }: { postId: number; bookmarked: boolean | null }) => (
-    <div data-testid="bookmark-button" data-post-id={postId} data-bookmarked={String(bookmarked)} />
-  ),
+  default: (props: { active: boolean | null; toggle: () => Promise<unknown> }) => {
+    lastBookmarkButtonProps.current = props;
+    return <div data-testid="bookmark-button" data-active={String(props.active)} />;
+  },
 }));
 
 function post(overrides: Partial<PostResponse> = {}): PostResponse {
@@ -59,6 +81,7 @@ describe('PostDetailPage (interaction wiring)', () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
     lastCommentSectionProps.current = null;
+    lastBookmarkButtonProps.current = null;
   });
 
   it('renders post content after loading', async () => {
@@ -80,11 +103,11 @@ describe('PostDetailPage (interaction wiring)', () => {
 
     await screen.findByText('Wiring post');
     expect(screen.getByTestId('vote-buttons').getAttribute('data-post-id')).toBe('42');
-    expect(screen.getByTestId('bookmark-button').getAttribute('data-post-id')).toBe('42');
-    expect(screen.getByTestId('bookmark-button').getAttribute('data-bookmarked')).toBe('true');
+    expect(screen.getByTestId('bookmark-button').getAttribute('data-active')).toBe('true');
+    expect(typeof lastBookmarkButtonProps.current?.toggle).toBe('function');
   });
 
-  it('passes postId and commentCount to CommentSection and syncs count via onCommentMutated', async () => {
+  it('passes targetId, commentCount and postCommentApi to CommentSection and syncs count via onCommentMutated', async () => {
     vi.mocked(getPostById)
       .mockResolvedValueOnce(post({ commentCount: 3 }))
       .mockResolvedValueOnce(post({ commentCount: 4 }));
@@ -92,8 +115,9 @@ describe('PostDetailPage (interaction wiring)', () => {
     render(<PostDetailPage params={{ id: '42' }} />);
 
     await screen.findByText('Wiring post');
-    expect(lastCommentSectionProps.current?.postId).toBe(42);
+    expect(lastCommentSectionProps.current?.targetId).toBe(42);
     expect(lastCommentSectionProps.current?.commentCount).toBe(3);
+    expect(lastCommentSectionProps.current?.api).toBe(postCommentApi);
     expect(typeof lastCommentSectionProps.current?.onCommentMutated).toBe('function');
 
     await act(async () => {
@@ -104,6 +128,21 @@ describe('PostDetailPage (interaction wiring)', () => {
     await waitFor(() => {
       expect(getPostById).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('binds the BookmarkButton toggle to toggleBookmarkState with the post id', async () => {
+    vi.mocked(getPostById).mockResolvedValue(post({ bookmarked: false }));
+    vi.mocked(toggleBookmarkState).mockResolvedValue({ ok: true, data: true, message: null });
+
+    render(<PostDetailPage params={{ id: '42' }} />);
+
+    await screen.findByText('Wiring post');
+
+    await act(async () => {
+      await lastBookmarkButtonProps.current?.toggle();
+    });
+
+    expect(toggleBookmarkState).toHaveBeenCalledWith(42);
   });
 
   it('shows the not-found state when fetching fails', async () => {

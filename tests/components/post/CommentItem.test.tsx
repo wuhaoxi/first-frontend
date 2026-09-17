@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CommentItem from '@/components/post/CommentItem';
-import type { CommentResponse } from '@/types/interactions';
+import type { AttractionCommentResponse, CommentResponse } from '@/types/interactions';
 
 function buildComment(overrides: Partial<CommentResponse> = {}): CommentResponse {
   return {
@@ -169,5 +169,32 @@ describe('CommentItem', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete comment' }));
 
     expect(await screen.findByText('Could not delete')).toBeInTheDocument();
+  });
+
+  it('renders an attraction-flavored comment through the same tree (CommentView)', () => {
+    const attractionComment: AttractionCommentResponse = {
+      id: 30,
+      attractionId: 5,
+      userId: 2,
+      content: 'Loved the view!',
+      parentCommentId: null,
+      replyCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    render(
+      <CommentItem
+        comment={attractionComment}
+        authorName="Alice"
+        layer={1}
+        currentUserId={null}
+        onReplyClick={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Loved the view!')).toBeInTheDocument();
+    expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 });

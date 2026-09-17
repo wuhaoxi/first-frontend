@@ -1,16 +1,16 @@
 'use client';
 
 import CommentItem from '@/components/post/CommentItem';
-import type { CommentResponse } from '@/types/interactions';
+import type { CommentView } from '@/types/interactions';
 
 export interface CommentThread {
-  items: CommentResponse[];
+  items: CommentView[];
   page: number;
   totalPages: number;
 }
 
 interface CommentListProps {
-  comments: CommentResponse[];
+  comments: CommentView[];
   threads: Map<number, CommentThread>;
   names: Map<number, string>;
   currentUserId: number | null;
@@ -18,7 +18,7 @@ interface CommentListProps {
   loadingMoreTop: boolean;
   onLoadMoreTop: () => void;
   onLoadMoreReplies: (parentId: number) => void;
-  onReplyClick: (comment: CommentResponse) => void;
+  onReplyClick: (comment: CommentView) => void;
   onDelete: (commentId: number) => Promise<string | null>;
 }
 

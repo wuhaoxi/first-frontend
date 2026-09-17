@@ -4,6 +4,7 @@ import {
   VoteStatsResponse,
   BookmarkResponse,
   CommentResponse,
+  CommentApiAdapter,
   PageResponse,
 } from '@/types/interactions';
 
@@ -60,4 +61,22 @@ export function createReply(commentId: number, content: string): Promise<ApiResp
 
 export function deleteComment(commentId: number): Promise<ApiResponse<null>> {
   return authFetch<null>(`/api/comments/${commentId}`, { method: 'DELETE' });
+}
+
+/** `CommentSection` adapter backed by the post comment endpoints. */
+export const postCommentApi: CommentApiAdapter = {
+  getTopLevelComments,
+  createComment,
+  getReplies,
+  createReply,
+  deleteComment,
+};
+
+/** Maps the bookmark toggle response to a plain boolean state for `BookmarkButton`. */
+export async function toggleBookmarkState(postId: number): Promise<ApiResponse<boolean>> {
+  const result = await toggleBookmark(postId);
+  if (!result.ok || result.data === null) {
+    return { ok: false, data: null, message: result.message };
+  }
+  return { ok: true, data: result.data.bookmarked, message: null };
 }

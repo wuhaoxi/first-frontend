@@ -64,6 +64,9 @@ function makeAttraction(id: number, name: string, overrides: Partial<AttractionS
     summary: `Summary of ${name}`,
     coverImageUrl: null,
     bookingRequired: false,
+    ratingScore: 4.9,
+    favoriteCount: 5100,
+    heatScore: 98,
     ...overrides,
   };
 }

@@ -2,28 +2,40 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   ArrowLeft,
   CalendarCheck,
   Clock,
+  Heart,
   Hourglass,
   MapPin,
   Ticket,
 } from 'lucide-react';
+import AttractionGallery from '@/components/attraction/AttractionGallery';
+import BookmarkButton from '@/components/post/BookmarkButton';
+import CommentSection from '@/components/post/CommentSection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getAttractionBySlug } from '@/lib/api/attractions';
+import { attractionCommentApi, toggleFavoriteState } from '@/lib/api/attraction-interactions';
 import { CATEGORY_LABELS } from '@/lib/attraction-meta';
+import { formatCompact } from '@/lib/format';
 import type { AttractionResponse } from '@/types/attraction';
 
 function DetailSkeleton() {
   return (
     <div className="space-y-6" data-testid="attraction-detail-skeleton">
-      <Skeleton className="aspect-[21/9] w-full rounded-lg" />
+      <Skeleton className="aspect-[4/3] w-full rounded-lg lg:aspect-[21/9]" />
       <Skeleton className="h-8 w-1/2" />
       <Skeleton className="h-4 w-1/3" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-32 w-full" />
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -68,6 +80,15 @@ export default function AttractionDetailPage({ params }: { params: { slug: strin
       })
       .finally(() => {
         setLoading(false);
+      });
+  }, [slug]);
+
+  /** Silent refetch used after interactions (favorite, comments) so counts stay in sync. */
+  const refreshAttraction = useCallback(() => {
+    getAttractionBySlug(slug)
+      .then(setAttraction)
+      .catch(() => {
+        // Keep the current view on failure; counts reconcile on the next load.
       });
   }, [slug]);
 
@@ -123,25 +144,12 @@ export default function AttractionDetailPage({ params }: { params: { slug: strin
         <article className="space-y-6">
           <div>{backLink}</div>
 
-          {/* Hero */}
-          <div className="relative aspect-[21/9] w-full overflow-hidden rounded-lg bg-muted">
-            {attraction.coverImageUrl ? (
-              <Image
-                src={attraction.coverImageUrl}
-                alt={attraction.name}
-                fill
-                sizes="(max-width: 1024px) 100vw, 896px"
-                priority
-                className="object-cover"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-5xl font-medium text-muted-foreground">
-                  {attraction.name.charAt(0)}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Gallery hero */}
+          <AttractionGallery
+            name={attraction.name}
+            gallery={attraction.gallery}
+            coverImageUrl={attraction.coverImageUrl}
+          />
 
           {/* Title */}
           <header>
@@ -172,73 +180,100 @@ export default function AttractionDetailPage({ params }: { params: { slug: strin
             )}
           </header>
 
-          {/* Summary + description */}
-          <section className="space-y-3">
-            <p className="text-lg text-muted-foreground">{attraction.summary}</p>
-            <p>{attraction.description}</p>
-          </section>
+          {/* Stats row with favorite toggle */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <span className="font-medium">★ {attraction.ratingScore.toFixed(1)}</span>
+            <span className="font-medium">♥ {formatCompact(attraction.favoriteCount)}</span>
+            <BookmarkButton
+              active={attraction.favorited}
+              toggle={() => toggleFavoriteState(attraction.id)}
+              labels={{ add: 'Add to favorites', remove: 'Remove from favorites' }}
+              icon={Heart}
+              activeIcon={Heart}
+              onChanged={() => refreshAttraction()}
+            />
+          </div>
 
-          {/* Advance booking alert */}
-          {attraction.bookingRequired && (
-            <div
-              role="alert"
-              className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900"
-            >
-              <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <div>
-                <p className="font-semibold">Advance booking required</p>
-                <p className="text-sm">
-                  {attraction.bookingNote ?? 'Book ahead of your visit'}
-                </p>
-              </div>
+          {/* Two-column body */}
+          <div className="grid gap-8 lg:grid-cols-3">
+            {/* Main column */}
+            <div className="space-y-6 lg:col-span-2">
+              <section className="space-y-3">
+                <p className="text-lg text-muted-foreground">{attraction.summary}</p>
+                <p>{attraction.description}</p>
+              </section>
+
+              <CommentSection
+                targetId={attraction.id}
+                api={attractionCommentApi}
+                commentCount={attraction.commentCount}
+                onCommentMutated={refreshAttraction}
+              />
             </div>
-          )}
 
-          {/* Practical info */}
-          <section className="rounded-lg border p-4">
-            <h2 className="mb-2 text-lg font-semibold">Practical information</h2>
-            <dl className="divide-y">
-              {attraction.openingHours && (
-                <InfoRow
-                  icon={<Clock className="h-4 w-4" />}
-                  label="Opening hours"
-                  value={attraction.openingHours}
-                />
+            {/* Sidebar */}
+            <aside className="space-y-6 lg:sticky lg:top-6 lg:col-span-1 lg:self-start">
+              {attraction.bookingRequired && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900"
+                >
+                  <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold">Advance booking required</p>
+                    <p className="text-sm">
+                      {attraction.bookingNote ?? 'Book ahead of your visit'}
+                    </p>
+                  </div>
+                </div>
               )}
-              {attraction.ticketPrice && (
-                <InfoRow
-                  icon={<Ticket className="h-4 w-4" />}
-                  label="Ticket price"
-                  value={attraction.ticketPrice}
-                />
-              )}
-              {attraction.suggestedDuration && (
-                <InfoRow
-                  icon={<Hourglass className="h-4 w-4" />}
-                  label="Suggested duration"
-                  value={attraction.suggestedDuration}
-                />
-              )}
-              {attraction.address && (
-                <InfoRow
-                  icon={<MapPin className="h-4 w-4" />}
-                  label="Address"
-                  value={attraction.address}
-                />
-              )}
-            </dl>
-            {attraction.latitude !== null && attraction.longitude !== null && (
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${attraction.latitude},${attraction.longitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-1 text-sm text-primary underline hover:opacity-80"
-              >
-                <MapPin className="h-4 w-4" aria-hidden="true" />
-                Open in map
-              </a>
-            )}
-          </section>
+
+              <section className="rounded-lg border p-4">
+                <h2 className="mb-2 text-lg font-semibold">Practical information</h2>
+                <dl className="divide-y">
+                  {attraction.openingHours && (
+                    <InfoRow
+                      icon={<Clock className="h-4 w-4" />}
+                      label="Opening hours"
+                      value={attraction.openingHours}
+                    />
+                  )}
+                  {attraction.ticketPrice && (
+                    <InfoRow
+                      icon={<Ticket className="h-4 w-4" />}
+                      label="Ticket price"
+                      value={attraction.ticketPrice}
+                    />
+                  )}
+                  {attraction.suggestedDuration && (
+                    <InfoRow
+                      icon={<Hourglass className="h-4 w-4" />}
+                      label="Suggested duration"
+                      value={attraction.suggestedDuration}
+                    />
+                  )}
+                  {attraction.address && (
+                    <InfoRow
+                      icon={<MapPin className="h-4 w-4" />}
+                      label="Address"
+                      value={attraction.address}
+                    />
+                  )}
+                </dl>
+                {attraction.latitude !== null && attraction.longitude !== null && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${attraction.latitude},${attraction.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1 text-sm text-primary underline hover:opacity-80"
+                  >
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                    Open in map
+                  </a>
+                )}
+              </section>
+            </aside>
+          </div>
         </article>
       )}
     </div>
