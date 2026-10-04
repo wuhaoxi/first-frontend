@@ -89,4 +89,18 @@ describe('authFetch', () => {
     expect(init.method).toBe('POST');
     expect(headers.get('Content-Type')).toBe('application/json');
   });
+
+  it('does not set Content-Type application/json for FormData bodies', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const formData = new FormData();
+    formData.append('file', new File(['data'], 'avatar.jpg', { type: 'image/jpeg' }));
+
+    await authFetch('/api/users/me/avatar', { method: 'POST', body: formData });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init.headers);
+    expect(headers.get('Content-Type')).toBeNull();
+  });
 });

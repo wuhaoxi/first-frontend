@@ -15,6 +15,7 @@ export interface AuthResponse {
   id: number;
   name: string;
   email: string;
+  avatarUrl: string | null;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;

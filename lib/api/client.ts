@@ -16,7 +16,8 @@ export async function authFetch<T>(
   init?: RequestInit
 ): Promise<ApiResponse<T>> {
   const headers = new Headers(init?.headers);
-  if (init?.body && !headers.has('Content-Type')) {
+  // FormData bodies must keep the browser-generated multipart Content-Type (with boundary).
+  if (init?.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
