@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/components/AuthContext';
+import TravelInfoDialog from '@/components/travel/TravelInfoDialog';
 
 export default function NavBar() {
   const { user, isLoading, logout } = useAuth();
@@ -16,6 +17,10 @@ export default function NavBar() {
       <Link href="/posts" className="hover:underline">Posts</Link>
       <span className="text-muted-foreground">|</span>
       <Link href="/todos" className="hover:underline">Todos</Link>
+
+      <span className="text-muted-foreground">|</span>
+
+      <TravelInfoDialog />
 
       <span className="text-muted-foreground">|</span>
 

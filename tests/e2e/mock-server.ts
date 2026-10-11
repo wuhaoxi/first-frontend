@@ -239,6 +239,58 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ---- AI Assistant chat (SSE) ----
+  // Auth model: the real backend requires the httpOnly `access_token` cookie;
+  // requests without it get 401 so the panel shows its login prompt.
+  if (url === '/api/assistant/chat' && method === 'POST') {
+    trackedRequests.push('assistant-chat');
+    const body = (await jsonBody(req)) as { message?: string; conversationId?: string };
+    const cookie = req.headers.cookie ?? '';
+
+    if (!cookie.includes('access_token=')) {
+      res.writeHead(401, corsHeaders);
+      res.end(
+        JSON.stringify({ message: 'Authentication required', status: 401, timestamp: new Date().toISOString() })
+      );
+      return;
+    }
+
+    const message = body.message ?? '';
+
+    if (message.includes('limit')) {
+      res.writeHead(429, corsHeaders);
+      res.end(
+        JSON.stringify({
+          message: 'Too many assistant requests — try again in a minute',
+          status: 429,
+          timestamp: new Date().toISOString(),
+        })
+      );
+      return;
+    }
+
+    res.writeHead(200, {
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+    });
+
+    if (message.includes('fail')) {
+      res.write('event:error\ndata:{"message":"The assistant is temporarily unavailable. Please try again."}\n\n');
+      res.end();
+      return;
+    }
+
+    const conversationId = body.conversationId ?? 'mock-conv-1';
+    res.write('event:delta\ndata:{"text":"Echo: "}\n\n');
+    res.write(`event:delta\ndata:${JSON.stringify({ text: message })}\n\n`);
+    res.write('event:delta\ndata:{"text":" — mock reply"}\n\n');
+    res.write(`event:done\ndata:${JSON.stringify({ conversationId })}\n\n`);
+    res.end();
+    return;
+  }
+
   // Fallback 404
   res.writeHead(404, corsHeaders);
   res.end(JSON.stringify({ message: 'Not Found', path: url }));

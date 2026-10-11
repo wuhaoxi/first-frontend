@@ -1,12 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import NavBar from '@/components/NavBar';
 import { useAuth } from '@/components/AuthContext';
+import { getAttractions } from '@/lib/api/attractions';
+import { getCurrentWeather, getForecast } from '@/lib/api/weather';
+import { getLatestRates } from '@/lib/api/exchangeRates';
 import type { AuthResponse } from '@/types/auth';
 
 vi.mock('@/components/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
+
+// The dialog mounts its sections only when opened; hold every request
+// unresolved so these tests never touch the network.
+vi.mock('@/lib/api/attractions');
+vi.mock('@/lib/api/weather');
+vi.mock('@/lib/api/exchangeRates');
 
 const useAuthMock = vi.mocked(useAuth);
 
@@ -35,9 +45,17 @@ function setAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
   } as ReturnType<typeof useAuth>);
 }
 
+function never<T>(): Promise<T> {
+  return new Promise<T>(() => {});
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   setAuth();
+  vi.mocked(getAttractions).mockReturnValue(never());
+  vi.mocked(getCurrentWeather).mockReturnValue(never());
+  vi.mocked(getForecast).mockReturnValue(never());
+  vi.mocked(getLatestRates).mockReturnValue(never());
 });
 
 describe('NavBar', () => {
@@ -80,5 +98,24 @@ describe('NavBar', () => {
     expect(within(link).queryByRole('img')).not.toBeInTheDocument();
     expect(within(link).getByText('A')).toBeInTheDocument();
     expect(within(link).getByText('Alice')).toBeInTheDocument();
+  });
+
+  it('renders the Weather & Rates trigger after the existing links and never disables it', () => {
+    render(<NavBar />);
+
+    const trigger = screen.getByRole('button', { name: 'Weather & Rates' });
+    expect(trigger).toBeEnabled();
+
+    const todos = screen.getByRole('link', { name: 'Todos' });
+    expect(todos.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('the trigger opens the dialog without navigating', async () => {
+    render(<NavBar />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Weather & Rates' }));
+
+    expect(await screen.findByRole('heading', { name: 'Weather & Rates' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
   });
 });

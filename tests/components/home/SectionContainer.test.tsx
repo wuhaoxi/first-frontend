@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+
+const refreshMock = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: refreshMock } as unknown as AppRouterInstance),
+}));
+
 import { SectionContainer } from '@/components/home/SectionContainer';
 
 describe('SectionContainer', () => {
@@ -104,5 +112,64 @@ describe('SectionContainer', () => {
       </SectionContainer>
     );
     expect(container.querySelector('section')?.className).toContain('custom-class');
+  });
+
+  it('renders a right-aligned action link when action prop is provided', () => {
+    render(
+      <SectionContainer
+        id="popular-destinations"
+        title="Popular Destinations"
+        state={{ status: 'success', data: [] }}
+        action={{ label: 'View all', href: '/attractions' }}
+      >
+        <div>Content</div>
+      </SectionContainer>
+    );
+    const link = screen.getByRole('link', { name: 'View all' });
+    expect(link).toHaveAttribute('href', '/attractions');
+    const heading = screen.getByRole('heading', { level: 2 });
+    expect(heading.parentElement?.className).toContain('justify-between');
+  });
+
+  it('renders no action link when action prop is absent', () => {
+    render(
+      <SectionContainer
+        id="hot-posts"
+        title="Traveler Discussions"
+        state={{ status: 'success', data: [] }}
+      >
+        <div>Content</div>
+      </SectionContainer>
+    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('calls the provided onRetry when Retry is clicked', async () => {
+    const onRetry = vi.fn();
+    render(
+      <SectionContainer
+        id="editors-picks"
+        state={{ status: 'error', message: 'Failed to load' }}
+        onRetry={onRetry}
+      >
+        <div>Should not render</div>
+      </SectionContainer>
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Retry loading this section' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to router.refresh when no onRetry is provided', async () => {
+    refreshMock.mockClear();
+    render(
+      <SectionContainer
+        id="editors-picks"
+        state={{ status: 'error', message: 'Failed to load' }}
+      >
+        <div>Should not render</div>
+      </SectionContainer>
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Retry loading this section' }));
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });

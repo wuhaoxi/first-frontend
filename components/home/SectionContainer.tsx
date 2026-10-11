@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 import type { SectionId, SectionState } from '@/types/home';
 import { SectionSkeleton } from './SectionSkeleton';
 import { SectionError } from './SectionError';
@@ -12,6 +15,7 @@ interface SectionContainerProps {
   title?: string;
   state: AllowedState;
   onRetry?: () => void;
+  action?: { label: string; href: string };
   children?: React.ReactNode;
   className?: string;
 }
@@ -37,9 +41,11 @@ export function SectionContainer({
   title,
   state,
   onRetry,
+  action,
   children,
   className,
 }: SectionContainerProps) {
+  const router = useRouter();
   let content: React.ReactNode;
 
   switch (state.status) {
@@ -50,7 +56,7 @@ export function SectionContainer({
       content = (
         <SectionError
           message={state.message}
-          onRetry={onRetry ?? (() => {})}
+          onRetry={onRetry ?? (() => router.refresh())}
         />
       );
       break;
@@ -65,7 +71,20 @@ export function SectionContainer({
 
   return (
     <section id={id} className={className}>
-      {title && <h2 className="text-xl font-semibold mb-4">{title}</h2>}
+      {(title || action) && (
+        <div className="flex items-center justify-between mb-4">
+          {title && <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>}
+          {action && (
+            <Link
+              href={action.href}
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary"
+            >
+              {action.label}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+      )}
       {content}
     </section>
   );

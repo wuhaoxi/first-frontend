@@ -1,13 +1,30 @@
 import { test, expect } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import {
   DESKTOP,
   MOBILE,
   AI_SELECTOR,
+  ASSISTANT_DIALOG,
   setupMock,
   resetMock,
   goHome,
   waitForSection,
 } from './mock-helpers';
+
+/**
+ * Opens the assistant panel via `open`, retrying so a click/Enter that lands
+ * before React hydration completes cannot flake the test.
+ */
+async function openPanel(page: Page, open: () => Promise<void>): Promise<Locator> {
+  const dialog = page.locator(ASSISTANT_DIALOG);
+  await expect(async () => {
+    if ((await dialog.count()) === 0) {
+      await open();
+    }
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10000 });
+  return dialog;
+}
 
 test.describe('Homepage — AI Assistant Entry (homepage-ai-assistant-entry.md)', () => {
   test.beforeEach(async ({ page }) => {
@@ -79,10 +96,25 @@ test.describe('Homepage — AI Assistant Entry (homepage-ai-assistant-entry.md)'
     const btn = page.locator(AI_SELECTOR);
     await btn.focus();
     await expect(btn).toBeFocused();
-    await page.keyboard.press('Enter');
 
-    await page.waitForTimeout(300);
-    // No crash — page is still visible
-    await expect(page.locator('body')).toBeVisible();
+    // Enter behaves like a click — the assistant panel opens with focus in the input
+    const dialog = await openPanel(page, () => page.keyboard.press('Enter'));
+    await expect(dialog.getByLabel('Message')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
+
+  /* ------------------------------------------------------------------
+   * WHEN/THEN AI-5: 点击悬浮按钮打开面板
+   *   WHEN  用户点击悬浮按钮
+   *   THEN  AI 助手面板打开，输入框获得焦点；Esc 可关闭
+   * ------------------------------------------------------------------ */
+  test('WHEN/THEN AI-5: clicking the floating button opens the assistant panel', async ({ page }) => {
+    const dialog = await openPanel(page, () => page.locator(AI_SELECTOR).click());
+    await expect(dialog.getByLabel('Message')).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
   });
 });

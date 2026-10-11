@@ -15,6 +15,7 @@ export const FUNC_NAV_ID = '#function-navigation';
 export const DEST_ID = '#popular-destinations';
 export const POSTS_ID = '#hot-posts';
 export const AI_SELECTOR = 'button[aria-label="AI 助手"]';
+export const ASSISTANT_DIALOG = '[role="dialog"][aria-label="AI Assistant"]';
 
 // ============================================================
 // Mock server control (mock-server.ts on :8080)
@@ -47,6 +48,23 @@ export async function resetMock(page: Page) {
 export async function fetchMockLog(page: Page): Promise<string[]> {
   const r = await page.request.get(`${MOCK}/__mock/requests`);
   return (await r.json()) as string[];
+}
+
+// ============================================================
+// Assistant helpers
+// ============================================================
+export async function loginAsMockUser(page: Page) {
+  // The backend authorizes the assistant via the httpOnly `access_token`
+  // cookie; the mock accepts its presence (see mock-server.ts).
+  await page.context().addCookies([
+    { name: 'access_token', value: 'mock-access-token', domain: 'localhost', path: '/' },
+  ]);
+}
+
+export async function sendAssistantMessage(page: Page, text: string) {
+  const dialog = page.locator(ASSISTANT_DIALOG);
+  await dialog.getByLabel('Message').fill(text);
+  await dialog.getByRole('button', { name: 'Send' }).click();
 }
 
 // ============================================================

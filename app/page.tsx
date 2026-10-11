@@ -1,10 +1,14 @@
 import { Suspense } from 'react';
 import { getFeaturedGuides, getHotPosts } from '@/lib/api/home';
 import { getPopularAttractions } from '@/lib/api/attractions';
+import { AssistantPanel } from '@/components/assistant/AssistantPanel';
+import { AssistantProvider } from '@/components/assistant/AssistantProvider';
+import {
+  AssistantEntryTrigger,
+  AssistantNavigationTrigger,
+} from '@/components/assistant/AssistantTriggers';
 import { SectionContainer } from '@/components/home/SectionContainer';
 import { HomepageSearchEntry } from '@/components/home/HomepageSearchEntry';
-import { HomepageAiAssistantEntry } from '@/components/home/HomepageAiAssistantEntry';
-import { HomepageFunctionNavigation } from '@/components/home/HomepageFunctionNavigation';
 import { HomepageEditorsPicks } from '@/components/home/HomepageEditorsPicks';
 import { HomepagePopularDestinations } from '@/components/home/HomepagePopularDestinations';
 import { HomepageHotPosts } from '@/components/home/HomepageHotPosts';
@@ -67,46 +71,50 @@ async function HotPostsSection() {
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
-      {/* Search Entry — static, renders immediately */}
-      <section id="search-entry">
-        <HomepageSearchEntry />
-      </section>
+    <AssistantProvider>
+      <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
+        {/* Search Entry — static, renders immediately */}
+        <section id="search-entry">
+          <HomepageSearchEntry />
+        </section>
 
-      {/* Editor's Picks — Suspense with hero skeleton */}
-      <Suspense fallback={
-        <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'loading' }}>
-          <div />
-        </SectionContainer>
-      }>
-        <EditorsPicksSection />
-      </Suspense>
+        {/* Editor's Picks — Suspense with hero skeleton */}
+        <Suspense fallback={
+          <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'loading' }}>
+            <div />
+          </SectionContainer>
+        }>
+          <EditorsPicksSection />
+        </Suspense>
 
-      {/* Function Navigation — static, renders immediately */}
-      <section id="function-navigation">
-        <HomepageFunctionNavigation />
-      </section>
+        {/* Function Navigation — static, renders immediately */}
+        <section id="function-navigation">
+          <AssistantNavigationTrigger />
+        </section>
 
-      {/* Popular Destinations — Suspense with grid skeleton */}
-      <Suspense fallback={
-        <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'loading' }}>
-          <div />
-        </SectionContainer>
-      }>
-        <PopularDestinationsSection />
-      </Suspense>
+        {/* Popular Destinations — Suspense with grid skeleton */}
+        <Suspense fallback={
+          <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'loading' }}>
+            <div />
+          </SectionContainer>
+        }>
+          <PopularDestinationsSection />
+        </Suspense>
 
-      {/* Hot Posts — Suspense with list skeleton */}
-      <Suspense fallback={
-        <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'loading' }}>
-          <div />
-        </SectionContainer>
-      }>
-        <HotPostsSection />
-      </Suspense>
+        {/* Hot Posts — Suspense with list skeleton */}
+        <Suspense fallback={
+          <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'loading' }}>
+            <div />
+          </SectionContainer>
+        }>
+          <HotPostsSection />
+        </Suspense>
 
-      {/* AI Assistant Entry — static floating layer */}
-      <HomepageAiAssistantEntry />
-    </div>
+        {/* AI Assistant Entry — static floating layer */}
+        <AssistantEntryTrigger />
+      </div>
+
+      <AssistantPanel />
+    </AssistantProvider>
   );
 }
