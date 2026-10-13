@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MDEditor from '@uiw/react-md-editor';
 import { useAuth } from '@/components/AuthContext';
 import { getPostById, createPost, updatePost } from '@/lib/api/posts';
+import { suggestTags, suggestTitles, streamPostPolish } from '@/lib/api/postAssist';
 import type { PostStatus, CreatePostRequest, UpdatePostRequest } from '@/types/post';
+
+/** Message the backend sends for any 401 — the sync assist calls redirect on it. */
+const UNAUTHORIZED_MESSAGE = 'Authentication required';
 
 export function PostForm({ id }: { id?: string }) {
   const isEditMode = Boolean(id);
@@ -20,6 +24,16 @@ export function PostForm({ id }: { id?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
+  const [titlesLoading, setTitlesLoading] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[] | null>(null);
+  const [titlesError, setTitlesError] = useState<string | null>(null);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagSuggestions, setTagSuggestions] = useState<string[] | null>(null);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+  const [polishStreaming, setPolishStreaming] = useState(false);
+  const [polishSnapshot, setPolishSnapshot] = useState<string | null>(null);
+  const [polishError, setPolishError] = useState<string | null>(null);
+  const polishAbortRef = useRef<AbortController | null>(null);
 
   // Load existing post in edit mode
   useEffect(() => {
@@ -45,6 +59,106 @@ export function PostForm({ id }: { id?: string }) {
       .split(',')
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
+  };
+
+  const handleSuggestTitles = async () => {
+    if (titlesLoading) {
+      return;
+    }
+    setTitlesError(null);
+    setTitlesLoading(true);
+    const res = await suggestTitles({ title, content });
+    setTitlesLoading(false);
+    if (!res.ok) {
+      if (res.message === UNAUTHORIZED_MESSAGE) {
+        router.push('/login');
+        return;
+      }
+      setTitlesError(res.message ?? 'Failed to suggest titles');
+      return;
+    }
+    setTitleSuggestions(res.data?.suggestions ?? []);
+  };
+
+  const handlePickTitle = (suggestion: string) => {
+    setTitle(suggestion);
+    setTitleSuggestions(null);
+  };
+
+  const handleSuggestTags = async () => {
+    if (tagsLoading) {
+      return;
+    }
+    setTagsError(null);
+    setTagsLoading(true);
+    const res = await suggestTags({ title, content });
+    setTagsLoading(false);
+    if (!res.ok) {
+      if (res.message === UNAUTHORIZED_MESSAGE) {
+        router.push('/login');
+        return;
+      }
+      setTagsError(res.message ?? 'Failed to suggest tags');
+      return;
+    }
+    setTagSuggestions(res.data?.tags ?? []);
+  };
+
+  const handlePickTag = (tag: string) => {
+    const current = parseTags(tagsInput);
+    if (current.includes(tag)) {
+      return;
+    }
+    setTagsInput([...current, tag].join(', '));
+  };
+
+  const handlePolish = () => {
+    if (polishStreaming) {
+      return;
+    }
+    const controller = new AbortController();
+    polishAbortRef.current = controller;
+    let streamed = '';
+    setPolishError(null);
+    setPolishSnapshot(content);
+    setPolishStreaming(true);
+    void streamPostPolish(
+      { title, content },
+      {
+        onDelta: (text) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          streamed += text;
+          setContent(streamed);
+        },
+        onDone: () => {
+          if (!controller.signal.aborted) {
+            setPolishStreaming(false);
+          }
+        },
+        onError: (message) => {
+          if (!controller.signal.aborted) {
+            setPolishError(message);
+            setPolishStreaming(false);
+          }
+        },
+        onUnauthorized: () => router.push('/login'),
+      },
+      { signal: controller.signal }
+    );
+  };
+
+  const handleStopPolish = () => {
+    polishAbortRef.current?.abort();
+    setPolishStreaming(false);
+  };
+
+  const handleRestoreOriginal = () => {
+    if (polishSnapshot !== null) {
+      setContent(polishSnapshot);
+    }
+    setPolishSnapshot(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,9 +234,19 @@ export function PostForm({ id }: { id?: string }) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Title */}
         <div>
-          <label htmlFor="title" className="mb-1 block text-sm font-medium">
-            Title *
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="title" className="block text-sm font-medium">
+              Title *
+            </label>
+            <button
+              type="button"
+              onClick={handleSuggestTitles}
+              disabled={titlesLoading}
+              className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+            >
+              {titlesLoading ? 'Suggesting…' : 'Suggest titles'}
+            </button>
+          </div>
           <input
             id="title"
             type="text"
@@ -133,11 +257,47 @@ export function PostForm({ id }: { id?: string }) {
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="Give your post a title"
           />
+          {titlesError && <p className="mt-1 text-sm text-destructive">{titlesError}</p>}
+          {titleSuggestions && titleSuggestions.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {titleSuggestions.map((suggestion) => (
+                <li key={suggestion}>
+                  <button
+                    type="button"
+                    onClick={() => handlePickTitle(suggestion)}
+                    className="rounded-full border border-input bg-background px-3 py-1 text-sm hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {suggestion}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Content — Markdown editor */}
         <div>
-          <label className="mb-1 block text-sm font-medium">Content *</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-sm font-medium">Content *</label>
+            <div className="flex items-center gap-2">
+              {polishSnapshot !== null && !polishStreaming && (
+                <button
+                  type="button"
+                  onClick={handleRestoreOriginal}
+                  className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  Restore original
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={polishStreaming ? handleStopPolish : handlePolish}
+                className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                {polishStreaming ? 'Stop' : 'Polish'}
+              </button>
+            </div>
+          </div>
           <div data-color-mode="light">
             <MDEditor
               value={content}
@@ -146,6 +306,7 @@ export function PostForm({ id }: { id?: string }) {
               preview="live"
             />
           </div>
+          {polishError && <p className="mt-1 text-sm text-destructive">{polishError}</p>}
         </div>
 
         {/* Cover Image URL */}
@@ -175,9 +336,19 @@ export function PostForm({ id }: { id?: string }) {
 
         {/* Tags */}
         <div>
-          <label htmlFor="tags" className="mb-1 block text-sm font-medium">
-            Tags (comma-separated)
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="tags" className="block text-sm font-medium">
+              Tags (comma-separated)
+            </label>
+            <button
+              type="button"
+              onClick={handleSuggestTags}
+              disabled={tagsLoading}
+              className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+            >
+              {tagsLoading ? 'Suggesting…' : 'Suggest tags'}
+            </button>
+          </div>
           <input
             id="tags"
             type="text"
@@ -186,6 +357,21 @@ export function PostForm({ id }: { id?: string }) {
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder="e.g. travel, food, guide"
           />
+          {tagsError && <p className="mt-1 text-sm text-destructive">{tagsError}</p>}
+          {tagSuggestions && tagSuggestions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tagSuggestions.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handlePickTag(tag)}
+                  className="rounded-full border border-input bg-background px-3 py-1 text-sm hover:bg-accent hover:text-accent-foreground"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Status */}
