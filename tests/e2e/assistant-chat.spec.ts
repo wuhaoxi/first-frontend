@@ -106,4 +106,17 @@ test.describe('Homepage — AI Assistant chat (add-ai-assistant)', () => {
     await sendAssistantMessage(page, 'limit please');
     await expect(dialog.getByRole('alert')).toContainText('Too many', { timeout: 5000 });
   });
+
+  /* 知识库引用：纯文本 Sources 尾注渲染在回复气泡内，气泡内无任何链接元素 */
+  test('知识库引用: the plain-text Sources tail renders inside the bubble without links', async ({ page }) => {
+    await loginAsMockUser(page);
+    const dialog = await openAssistant(page);
+
+    await sendAssistantMessage(page, 'knowledge: 杭州西湖是哪里？');
+
+    const bubble = dialog.locator('div[aria-live="polite"]');
+    await expect(bubble).toHaveCount(1);
+    await expect(bubble).toContainText('Sources: [1] 《杭州西湖》 (attractions)', { timeout: 10000 });
+    await expect(bubble.locator('a')).toHaveCount(0);
+  });
 });

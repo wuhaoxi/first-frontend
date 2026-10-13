@@ -283,6 +283,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     const conversationId = body.conversationId ?? 'mock-conv-1';
+
+    // Knowledge question (add-assistant-knowledge-base): the reply ends with a
+    // plain-text citation tail, mirroring the backend's Sources rule.
+    if (message.includes('knowledge')) {
+      res.write('event:delta\ndata:{"text":"杭州西湖以秀丽的湖光山色与人文典故闻名。"}\n\n');
+      res.write(`event:delta\ndata:${JSON.stringify({ text: '\n\nSources: [1] 《杭州西湖》 (attractions)' })}\n\n`);
+      res.write(`event:done\ndata:${JSON.stringify({ conversationId })}\n\n`);
+      res.end();
+      return;
+    }
+
     res.write('event:delta\ndata:{"text":"Echo: "}\n\n');
     res.write(`event:delta\ndata:${JSON.stringify({ text: message })}\n\n`);
     res.write('event:delta\ndata:{"text":" — mock reply"}\n\n');
