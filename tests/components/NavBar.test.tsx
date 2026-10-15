@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { usePathname } from 'next/navigation';
 import NavBar from '@/components/NavBar';
 import { useAuth } from '@/components/AuthContext';
 import { getAttractions } from '@/lib/api/attractions';
@@ -12,6 +13,10 @@ vi.mock('@/components/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(() => '/'),
+}));
+
 // The dialog mounts its sections only when opened; hold every request
 // unresolved so these tests never touch the network.
 vi.mock('@/lib/api/attractions');
@@ -19,6 +24,7 @@ vi.mock('@/lib/api/weather');
 vi.mock('@/lib/api/exchangeRates');
 
 const useAuthMock = vi.mocked(useAuth);
+const usePathnameMock = vi.mocked(usePathname);
 
 function makeUser(overrides: Partial<AuthResponse> = {}): AuthResponse {
   return {
@@ -52,6 +58,7 @@ function never<T>(): Promise<T> {
 beforeEach(() => {
   vi.clearAllMocks();
   setAuth();
+  usePathnameMock.mockReturnValue('/');
   vi.mocked(getAttractions).mockReturnValue(never());
   vi.mocked(getCurrentWeather).mockReturnValue(never());
   vi.mocked(getForecast).mockReturnValue(never());
@@ -59,6 +66,19 @@ beforeEach(() => {
 });
 
 describe('NavBar', () => {
+  // --- Brand ---
+
+  it('renders the brand link to / with the Compass mark and accessible name', () => {
+    render(<NavBar />);
+
+    const brand = screen.getByRole('link', { name: 'WanderChina — home' });
+    expect(brand).toHaveAttribute('href', '/');
+    expect(brand).toHaveTextContent('WanderChina');
+    expect(brand.querySelector('svg')).not.toBeNull();
+  });
+
+  // --- Primary links and active state ---
+
   it('renders an Attractions link to /attractions', () => {
     render(<NavBar />);
 
@@ -75,6 +95,86 @@ describe('NavBar', () => {
       .filter((text): text is string => ['Home', 'Attractions', 'Posts', 'Todos'].includes(text ?? ''));
 
     expect(labels).toEqual(['Home', 'Attractions', 'Posts', 'Todos']);
+  });
+
+  it('marks the current route with aria-current and leaves other links unset', () => {
+    usePathnameMock.mockReturnValue('/attractions');
+    render(<NavBar />);
+
+    expect(screen.getByRole('link', { name: 'Attractions' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Posts' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Todos' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('keeps Home inactive on nested routes and matches other links by prefix', () => {
+    usePathnameMock.mockReturnValue('/posts/123');
+    render(<NavBar />);
+
+    expect(screen.getByRole('link', { name: 'Posts' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('activates Home only on the exact root path', () => {
+    usePathnameMock.mockReturnValue('/');
+    render(<NavBar />);
+
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  // --- Mobile menu ---
+
+  it('toggles the mobile menu and exposes a labelled panel with links, travel entry and auth', async () => {
+    render(<NavBar />);
+
+    const toggle = screen.getByRole('button', { name: 'Menu' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveAttribute('aria-controls', 'primary-mobile-menu');
+    expect(document.getElementById('primary-mobile-menu')).toBeNull();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const panel = document.getElementById('primary-mobile-menu');
+    expect(panel).not.toBeNull();
+    const menu = within(panel as HTMLElement);
+    expect(menu.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(menu.getByRole('link', { name: 'Register' })).toHaveAttribute('href', '/register');
+    expect(menu.getByRole('button', { name: 'Weather & Rates' })).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('primary-mobile-menu')).toBeNull();
+  });
+
+  it('closes the mobile menu on Escape', async () => {
+    render(<NavBar />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('primary-mobile-menu')).toBeNull();
+  });
+
+  // --- Auth cluster ---
+
+  it('shows Log in and Register links when signed out', () => {
+    render(<NavBar />);
+
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Register' })).toHaveAttribute('href', '/register');
+  });
+
+  it('shows a muted placeholder while the auth state loads', () => {
+    setAuth({ user: null, isLoading: true });
+
+    render(<NavBar />);
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('links to /profile with the user avatar when signed in', () => {
@@ -99,6 +199,19 @@ describe('NavBar', () => {
     expect(within(link).getByText('A')).toBeInTheDocument();
     expect(within(link).getByText('Alice')).toBeInTheDocument();
   });
+
+  it('calls logout when the Logout button is clicked', async () => {
+    const logout = vi.fn();
+    setAuth({ user: makeUser(), logout });
+
+    render(<NavBar />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
+
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Travel info entry ---
 
   it('renders the Weather & Rates trigger after the existing links and never disables it', () => {
     render(<NavBar />);

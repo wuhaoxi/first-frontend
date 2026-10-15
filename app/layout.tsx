@@ -17,13 +17,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <div className="app">
-            <header>
-              <h1>My App</h1>
-            </header>
+          <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
             <NavBar />
-            <main>{children}</main>
-          </div>
+          </header>
+          <main>{children}</main>
         </AuthProvider>
       </body>
     </html>

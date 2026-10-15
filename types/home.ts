@@ -1,6 +1,6 @@
 export type SectionId =
   | 'search-entry'
-  | 'editors-picks'
+  | 'featured-destinations'
   | 'function-navigation'
   | 'popular-destinations'
   | 'hot-posts'
@@ -11,15 +11,6 @@ export type SectionState<T> =
   | { status: 'loading' }
   | { status: 'success'; data: T }
   | { status: 'error'; message: string };
-
-export interface FeaturedGuide {
-  id: number;
-  title: string;
-  cityName: string;
-  coverImageUrl: string | null;
-  recommendation: string;
-  slug: string;
-}
 
 export interface HotPost {
   id: number;

@@ -1,15 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getFeaturedGuides, getHotPosts } from '@/lib/api/home';
-import type { FeaturedGuide, HotPost } from '@/types/home';
-
-const mockGuide: FeaturedGuide = {
-  id: 1,
-  title: 'A Guide to Chengdu',
-  cityName: 'Chengdu',
-  coverImageUrl: 'https://example.com/chengdu.jpg',
-  recommendation: 'Best spicy food tour',
-  slug: 'chengdu-guide',
-};
+import { getHotPosts } from '@/lib/api/home';
+import type { HotPost } from '@/types/home';
 
 const mockPost: HotPost = {
   id: 1,
@@ -22,43 +13,6 @@ const mockPost: HotPost = {
 describe('home API client', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-  });
-
-  // --- getFeaturedGuides ---
-
-  it('getFeaturedGuides returns guides on success', async () => {
-    const guides: FeaturedGuide[] = [mockGuide];
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(guides),
-    });
-
-    const result = await getFeaturedGuides();
-    expect(result).toEqual(guides);
-    expect(fetch).toHaveBeenCalledWith('/api/home/featured-guides', { cache: 'no-store' });
-  });
-
-  it('getFeaturedGuides throws on non-OK response with message', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: () => Promise.resolve({ message: 'Database connection failed' }),
-    });
-
-    await expect(getFeaturedGuides()).rejects.toThrow('500: Database connection failed');
-  });
-
-  it('getFeaturedGuides throws with statusText when no message in body', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      statusText: 'Service Unavailable',
-      json: () => Promise.reject(new Error('not json')),
-    });
-
-    await expect(getFeaturedGuides()).rejects.toThrow('503: Service Unavailable');
   });
 
   // --- getHotPosts ---

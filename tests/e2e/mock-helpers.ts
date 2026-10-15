@@ -10,11 +10,11 @@ export const MOBILE = { width: 375, height: 667 } as const;
 // Section IDs
 // ============================================================
 export const SEARCH_ID = '#search-entry';
-export const EDITORS_ID = '#editors-picks';
+export const FEATURED_ID = '#featured-destinations';
 export const FUNC_NAV_ID = '#function-navigation';
 export const DEST_ID = '#popular-destinations';
 export const POSTS_ID = '#hot-posts';
-export const AI_SELECTOR = 'button[aria-label="AI 助手"]';
+export const AI_SELECTOR = 'button[aria-label="AI Assistant"]';
 export const ASSISTANT_DIALOG = '[role="dialog"][aria-label="AI Assistant"]';
 
 // ============================================================
@@ -23,10 +23,8 @@ export const ASSISTANT_DIALOG = '[role="dialog"][aria-label="AI Assistant"]';
 const MOCK = 'http://localhost:8080';
 
 export interface MockConfig {
-  guidesFail?: boolean;
   attractionsFail?: boolean;
   postsFail?: boolean;
-  guidesDelay?: number;
   attractionsDelay?: number;
   postsDelay?: number;
   postsEmpty?: boolean;

@@ -27,9 +27,29 @@ describe('HomepageSearchEntry', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('renders with a placeholder text', () => {
+  it('renders the input as a tall pill', () => {
     render(<HomepageSearchEntry />);
-    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    const input = screen.getByRole('textbox');
+
+    expect(input.className).toContain('h-12');
+    expect(input.className).toContain('rounded-full');
+  });
+
+  it('renders the search icon button inside the pill field', () => {
+    render(<HomepageSearchEntry />);
+    const input = screen.getByRole('textbox');
+    const field = input.parentElement;
+
+    expect(field?.tagName).toBe('DIV');
+    expect(field?.querySelector('button[type="submit"]')).not.toBeNull();
+  });
+
+  it('renders the attractions placeholder and accessible label', () => {
+    render(<HomepageSearchEntry />);
+    const input = screen.getByPlaceholderText('Search attractions by name…');
+
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveAccessibleName('Search attractions');
   });
 
   it('triggers onSearch with trimmed keyword on Enter', async () => {
@@ -77,14 +97,14 @@ describe('HomepageSearchEntry', () => {
     expect(onSearch).not.toHaveBeenCalled();
   });
 
-  it('default onSearch navigates to /guides?q=...', async () => {
+  it('default onSearch navigates to /attractions?q=...', async () => {
     render(<HomepageSearchEntry />);
     const input = screen.getByRole('textbox');
 
     await userEvent.type(input, 'Chengdu');
     await userEvent.keyboard('{Enter}');
 
-    expect(mockPush).toHaveBeenCalledWith('/guides?q=Chengdu');
+    expect(mockPush).toHaveBeenCalledWith('/attractions?q=Chengdu');
   });
 
   it('encodes special characters in query param', async () => {
@@ -94,7 +114,17 @@ describe('HomepageSearchEntry', () => {
     await userEvent.type(input, '成都 攻略');
     await userEvent.keyboard('{Enter}');
 
-    expect(mockPush).toHaveBeenCalledWith('/guides?q=%E6%88%90%E9%83%BD%20%E6%94%BB%E7%95%A5');
+    expect(mockPush).toHaveBeenCalledWith('/attractions?q=%E6%88%90%E9%83%BD%20%E6%94%BB%E7%95%A5');
+  });
+
+  it('trims surrounding whitespace before navigating', async () => {
+    render(<HomepageSearchEntry />);
+    const input = screen.getByRole('textbox');
+
+    await userEvent.type(input, '  Great Wall  ');
+    await userEvent.keyboard('{Enter}');
+
+    expect(mockPush).toHaveBeenCalledWith('/attractions?q=Great%20Wall');
   });
 
   it('keeps focus on input when empty text is submitted', async () => {
@@ -105,5 +135,6 @@ describe('HomepageSearchEntry', () => {
     await userEvent.keyboard('{Enter}');
 
     expect(input).toHaveFocus();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

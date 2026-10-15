@@ -29,7 +29,7 @@ async function openPanel(page: Page, open: () => Promise<void>): Promise<Locator
 test.describe('Homepage — AI Assistant Entry (homepage-ai-assistant-entry.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
+    await setupMock(page, { attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
     await waitForSection(page, 'function-navigation');
   });
@@ -43,7 +43,7 @@ test.describe('Homepage — AI Assistant Entry (homepage-ai-assistant-entry.md)'
   test('WHEN/THEN AI-1: floating AI button fixed at bottom-right with aria-label', async ({ page }) => {
     const btn = page.locator(AI_SELECTOR);
     await expect(btn).toBeVisible({ timeout: 5000 });
-    await expect(btn).toHaveAttribute('aria-label', 'AI 助手');
+    await expect(btn).toHaveAttribute('aria-label', 'AI Assistant');
 
     // Verify fixed positioning
     const box = await btn.boundingBox();
@@ -90,7 +90,7 @@ test.describe('Homepage — AI Assistant Entry (homepage-ai-assistant-entry.md)'
   /* ------------------------------------------------------------------
    * WHEN/THEN AI-4: 键盘可触发
    *   WHEN  用户使用键盘 Tab 聚焦到悬浮按钮并回车
-   *   THEN  触发与点击相同的行为（AI 模块未接入时不报错）
+   *   THEN  触发与点击相同的行为（唤起 AI 对话）
    * ------------------------------------------------------------------ */
   test('WHEN/THEN AI-4: keyboard Enter on floating button triggers same as click', async ({ page }) => {
     const btn = page.locator(AI_SELECTOR);

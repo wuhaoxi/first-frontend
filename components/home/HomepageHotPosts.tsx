@@ -19,9 +19,11 @@ export function HomepageHotPosts({
   if (posts.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center">
-        <p className="text-muted-foreground">No discussions yet</p>
+        <p className="text-muted-foreground">
+          No discussions yet. Be the first to ask a question!
+        </p>
         <Link
-          href="/community/new"
+          href="/posts/create"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         >
           Start a Discussion &rarr;
@@ -35,14 +37,14 @@ export function HomepageHotPosts({
       {posts.slice(0, 5).map((post) => (
         <Link
           key={post.id}
-          href={`/community/post/${post.id}`}
+          href={`/posts/${post.id}`}
           onClick={(e) => {
             if (onPostClick) {
               e.preventDefault();
               onPostClick(post.id);
             }
           }}
-          className="flex items-center gap-3 py-3 hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors"
+          className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-lg hover:bg-accent/50 transition-colors"
         >
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm line-clamp-1">{post.title}</h4>

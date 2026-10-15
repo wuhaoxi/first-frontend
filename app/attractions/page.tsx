@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { X } from 'lucide-react';
 import { AttractionCard } from '@/components/attraction/AttractionCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getAttractions } from '@/lib/api/attractions';
@@ -13,6 +15,11 @@ const PAGE_SIZE = 20;
 const CATEGORY_OPTIONS = Object.keys(CATEGORY_LABELS) as AttractionCategory[];
 
 const SKELETON_KEYS = [1, 2, 3];
+
+function normalizeKeyword(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim() ?? '';
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 function AttractionCardSkeletonCard() {
   return (
@@ -50,8 +57,39 @@ function FilterChip({
   );
 }
 
+function AttractionsPageSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Attractions</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Curated sights across China, from imperial palaces to riverside streets
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {SKELETON_KEYS.map((key) => (
+          <AttractionCardSkeletonCard key={key} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AttractionsPage() {
+  return (
+    <Suspense fallback={<AttractionsPageSkeleton />}>
+      <AttractionsPageContent />
+    </Suspense>
+  );
+}
+
+function AttractionsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [attractions, setAttractions] = useState<AttractionSummary[]>([]);
+  const [keyword, setKeyword] = useState<string | null>(() =>
+    normalizeKeyword(searchParams?.get('q'))
+  );
   const [city, setCity] = useState<string | null>(null);
   const [category, setCategory] = useState<AttractionCategory | null>(null);
   const [page, setPage] = useState(0);
@@ -63,44 +101,53 @@ export default function AttractionsPage() {
 
   const generationRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const initialKeywordRef = useRef(keyword);
 
-  const fetchFirstPage = useCallback((nextCity: string | null, nextCategory: AttractionCategory | null) => {
-    const generation = ++generationRef.current;
-    setLoading(true);
-    setLoadingMore(false);
-    setError(null);
-    setLoadMoreError(null);
-    setAttractions([]);
-    setPage(0);
-    getAttractions({
-      ...(nextCity !== null ? { city: nextCity } : {}),
-      ...(nextCategory !== null ? { category: nextCategory } : {}),
-      page: 0,
-      size: PAGE_SIZE,
-    })
-      .then((res) => {
-        if (generationRef.current !== generation) {
-          return;
-        }
-        setAttractions(res.content);
-        setPage(res.page);
-        setTotalPages(res.totalPages);
+  const fetchFirstPage = useCallback(
+    (
+      nextCity: string | null,
+      nextCategory: AttractionCategory | null,
+      nextKeyword: string | null
+    ) => {
+      const generation = ++generationRef.current;
+      setLoading(true);
+      setLoadingMore(false);
+      setError(null);
+      setLoadMoreError(null);
+      setAttractions([]);
+      setPage(0);
+      getAttractions({
+        ...(nextCity !== null ? { city: nextCity } : {}),
+        ...(nextCategory !== null ? { category: nextCategory } : {}),
+        ...(nextKeyword !== null ? { q: nextKeyword } : {}),
+        page: 0,
+        size: PAGE_SIZE,
       })
-      .catch((err) => {
-        if (generationRef.current !== generation) {
-          return;
-        }
-        setError(err instanceof Error ? err.message : 'Failed to load attractions');
-      })
-      .finally(() => {
-        if (generationRef.current === generation) {
-          setLoading(false);
-        }
-      });
-  }, []);
+        .then((res) => {
+          if (generationRef.current !== generation) {
+            return;
+          }
+          setAttractions(res.content);
+          setPage(res.page);
+          setTotalPages(res.totalPages);
+        })
+        .catch((err) => {
+          if (generationRef.current !== generation) {
+            return;
+          }
+          setError(err instanceof Error ? err.message : 'Failed to load attractions');
+        })
+        .finally(() => {
+          if (generationRef.current === generation) {
+            setLoading(false);
+          }
+        });
+    },
+    []
+  );
 
   useEffect(() => {
-    fetchFirstPage(null, null);
+    fetchFirstPage(null, null, initialKeywordRef.current);
   }, [fetchFirstPage]);
 
   const handleCityChange = (nextCity: string | null) => {
@@ -108,7 +155,7 @@ export default function AttractionsPage() {
       return;
     }
     setCity(nextCity);
-    fetchFirstPage(nextCity, category);
+    fetchFirstPage(nextCity, category, keyword);
   };
 
   const handleCategoryChange = (nextCategory: AttractionCategory | null) => {
@@ -116,7 +163,13 @@ export default function AttractionsPage() {
       return;
     }
     setCategory(nextCategory);
-    fetchFirstPage(city, nextCategory);
+    fetchFirstPage(city, nextCategory, keyword);
+  };
+
+  const handleClearKeyword = () => {
+    setKeyword(null);
+    router.replace('/attractions');
+    fetchFirstPage(city, category, null);
   };
 
   const hasMore = page + 1 < totalPages;
@@ -131,6 +184,7 @@ export default function AttractionsPage() {
     getAttractions({
       ...(city !== null ? { city } : {}),
       ...(category !== null ? { category } : {}),
+      ...(keyword !== null ? { q: keyword } : {}),
       page: page + 1,
       size: PAGE_SIZE,
     })
@@ -157,7 +211,7 @@ export default function AttractionsPage() {
           setLoadingMore(false);
         }
       });
-  }, [loading, loadingMore, hasMore, city, category, page]);
+  }, [loading, loadingMore, hasMore, city, category, keyword, page]);
 
   const observerEligible =
     !loading && !loadingMore && hasMore && !error && !loadMoreError && attractions.length > 0;
@@ -191,6 +245,21 @@ export default function AttractionsPage() {
           Curated sights across China, from imperial palaces to riverside streets
         </p>
       </div>
+
+      {/* Keyword chip */}
+      {keyword !== null && (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={handleClearKeyword}
+            aria-label={`Clear search: ${keyword}`}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-secondary px-3 py-1.5 text-sm font-medium hover:bg-accent"
+          >
+            <span>{`Search: “${keyword}”`}</span>
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* City filter */}
       <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter by city">
@@ -236,7 +305,7 @@ export default function AttractionsPage() {
         <div className="py-12 text-center">
           <p className="mb-4 text-muted-foreground">{error}</p>
           <button
-            onClick={() => fetchFirstPage(city, category)}
+            onClick={() => fetchFirstPage(city, category, keyword)}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
           >
             Retry

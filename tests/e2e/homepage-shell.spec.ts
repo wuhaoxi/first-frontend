@@ -11,13 +11,13 @@ const MOBILE  = { width: 375,  height: 667 };
 // ============================================================
 const SECTION_IDS = [
   'search-entry',
-  'editors-picks',
+  'featured-destinations',
   'function-navigation',
   'popular-destinations',
   'hot-posts',
 ] as const;
 
-const AI_SELECTOR = 'button[aria-label="AI 助手"]';
+const AI_SELECTOR = 'button[aria-label="AI Assistant"]';
 
 // ============================================================
 // Mock backend control (mock-server.ts on :8080)
@@ -25,10 +25,8 @@ const AI_SELECTOR = 'button[aria-label="AI 助手"]';
 const MOCK = 'http://localhost:8080';
 
 interface MockConfig {
-  guidesFail?: boolean;
   attractionsFail?: boolean;
   postsFail?:  boolean;
-  guidesDelay?: number;
   attractionsDelay?: number;
   postsDelay?:  number;
 }
@@ -86,7 +84,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
   // ---- beforeEach: reset mocks → configure success → desktop → navigate ----
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
+    await setupMock(page, { attractionsFail: false, postsFail: false });
     await page.setViewportSize(DESKTOP);
     await page.goto('/', { waitUntil: 'domcontentloaded' });
   });
@@ -102,12 +100,12 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
 
   /* ------------------------------------------------------------------
    * WHEN/THEN #2 — 单区块 API 失败不影响整页
-   *   WHEN  热门景点接口返回错误
-   *   THEN  该区块显示错误占位与 Retry 按钮
-   *   AND   编辑精选、热门帖子等其他区块正常渲染
+   *   WHEN  景点接口返回错误
+   *   THEN  Hero（精选目的地）与热门景点区块显示错误占位与 Retry 按钮
+   *   AND   热门帖子等其他区块正常渲染
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN #2: failed popular-attractions shows alert + Retry; others healthy', async ({ page }) => {
-    // Override mock: attractions popular API fails
+  test('WHEN/THEN #2: failed attractions shows alert + Retry; hot-posts stays healthy', async ({ page }) => {
+    // Override mock: both attractions-backed sections fail
     await setupMock(page, { attractionsFail: true });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
@@ -115,18 +113,19 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
     await expect(page.locator('#search-entry')).toBeVisible();
     await expect(page.locator('#function-navigation')).toBeVisible();
 
-    // Failed section
-    const dest = page.locator('#popular-destinations');
-    await expect(dest).toBeVisible({ timeout: 15000 });
-    await expect(dest.locator('[role="alert"]')).toBeVisible({ timeout: 15000 });
-    await expect(dest.locator('button[aria-label*="Retry" i]')).toBeVisible();
-
-    // Healthy data sections must NOT show error
-    for (const id of ['editors-picks', 'hot-posts']) {
+    // Failed sections (both call the attractions API)
+    for (const id of ['featured-destinations', 'popular-destinations']) {
       const sec = page.locator(`#${id}`);
       await expect(sec).toBeVisible({ timeout: 15000 });
-      await expect(sec.locator('[role="alert"]')).toHaveCount(0, { timeout: 10000 });
+      await expect(sec.locator('[role="alert"]')).toBeVisible({ timeout: 15000 });
+      await expect(sec.locator('button[aria-label*="Retry" i]')).toBeVisible();
     }
+
+    // Healthy data section must NOT show error
+    const healthy = page.locator('#hot-posts');
+    await expect(healthy).toBeVisible({ timeout: 15000 });
+    await waitForData(page, 'hot-posts');
+    await expect(healthy.locator('[role="alert"]')).toHaveCount(0, { timeout: 10000 });
   });
 
   /* ------------------------------------------------------------------
@@ -136,7 +135,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #3: skeletons appear during loading; no layout shift', async ({ page }) => {
     // 3 s delay so we can observe the skeleton frame
-    await setupMock(page, { guidesDelay: 3000, attractionsDelay: 3000, postsDelay: 3000 });
+    await setupMock(page, { attractionsDelay: 3000, postsDelay: 3000 });
 
     // `commit` returns as soon as initial HTML arrives (suspense fallbacks)
     await page.goto('/', { waitUntil: 'commit' });
@@ -153,7 +152,7 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
     }));
 
     // Wait until all data sections resolve
-    for (const id of ['editors-picks', 'popular-destinations', 'hot-posts']) {
+    for (const id of ['featured-destinations', 'popular-destinations', 'hot-posts']) {
       await waitForData(page, id);
     }
 
@@ -204,18 +203,18 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    *   AND   各 API 请求并行发起
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #5: page loads ≤ 2 s; 3 data APIs fire in parallel', async ({ page }) => {
-    await setupMock(page, { guidesDelay: 100, attractionsDelay: 100, postsDelay: 100 });
+    await setupMock(page, { attractionsDelay: 100, postsDelay: 100 });
 
     const t0 = Date.now();
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    for (const id of ['editors-picks', 'popular-destinations', 'hot-posts']) {
+    for (const id of ['featured-destinations', 'popular-destinations', 'hot-posts']) {
       await waitForData(page, id);
     }
     expect(Date.now() - t0).toBeLessThanOrEqual(2000);
 
     const log = await fetchMockLog(page);
-    for (const ep of ['featured-guides', 'attractions-popular', 'hot-posts']) {
+    for (const ep of ['attractions-list', 'attractions-popular', 'hot-posts']) {
       expect(log).toContain(ep);
     }
   });
@@ -227,9 +226,9 @@ test.describe('Homepage Shell (homepage-shell.md)', () => {
    * ------------------------------------------------------------------ */
   test('WHEN/THEN #6: Tab reaches all interactive elements; they accept input', async ({ page }) => {
     // All APIs fail → 3 retry buttons + static controls = rich interaction surface
-    await setupMock(page, { guidesFail: true, attractionsFail: true, postsFail: true });
+    await setupMock(page, { attractionsFail: true, postsFail: true });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#editors-picks [role="alert"]', { timeout: 15000 });
+    await page.waitForSelector('#featured-destinations [role="alert"]', { timeout: 15000 });
 
     // -- Phase A: Tab through the page, record focused tag names --
     const tags = new Set<string>();

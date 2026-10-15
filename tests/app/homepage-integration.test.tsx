@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
+import { Suspense, isValidElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { SectionContainer } from '@/components/home/SectionContainer';
+import type { AttractionSummary } from '@/types/attraction';
+import type { PageResponse } from '@/types/interactions';
 
 // Mock next/navigation for SSR rendering of client components
 vi.mock('next/navigation', () => ({
@@ -11,6 +15,19 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// Mock the homepage data clients so page rendering stays deterministic in tests
+vi.mock('@/lib/api/attractions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/attractions')>();
+  return { ...actual, getAttractions: vi.fn(), getPopularAttractions: vi.fn() };
+});
+
+vi.mock('@/lib/api/home', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api/home')>();
+  return { ...actual, getHotPosts: vi.fn() };
+});
+
+import { getAttractions, getPopularAttractions } from '@/lib/api/attractions';
+import { getHotPosts } from '@/lib/api/home';
 import HomePage from '@/app/page';
 
 // --- Section order + composition isolation ---
@@ -20,14 +37,14 @@ describe('homepage section composition', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders sections in correct order (search-entry → editors-picks → function-navigation → popular-destinations → hot-posts)', () => {
+  it('renders sections in correct order (search-entry → featured-destinations → function-navigation → popular-destinations → hot-posts)', () => {
     render(
       <div>
         <section id="search-entry" data-testid="section">
           <span>search</span>
         </section>
-        <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'success', data: [] }}>
-          <div data-testid="content">editors-picks-content</div>
+        <SectionContainer id="featured-destinations" title="Featured Destinations" state={{ status: 'success', data: [] }}>
+          <div data-testid="content">featured-destinations-content</div>
         </SectionContainer>
         <section id="function-navigation" data-testid="section">
           <span>nav</span>
@@ -35,7 +52,7 @@ describe('homepage section composition', () => {
         <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'success', data: [] }}>
           <div data-testid="content">destinations-content</div>
         </SectionContainer>
-        <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'success', data: [] }}>
+        <SectionContainer id="hot-posts" title="Traveler Discussions" state={{ status: 'success', data: [] }}>
           <div data-testid="content">hot-posts-content</div>
         </SectionContainer>
       </div>,
@@ -46,7 +63,7 @@ describe('homepage section composition', () => {
 
     expect(ids).toEqual([
       'search-entry',
-      'editors-picks',
+      'featured-destinations',
       'function-navigation',
       'popular-destinations',
       'hot-posts',
@@ -56,7 +73,7 @@ describe('homepage section composition', () => {
   it('single-section failure does not affect other sections', () => {
     render(
       <div>
-        <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'success', data: [] }}>
+        <SectionContainer id="featured-destinations" title="Featured Destinations" state={{ status: 'success', data: [] }}>
           <div data-testid="success-section">guides loaded</div>
         </SectionContainer>
         <SectionContainer
@@ -66,7 +83,7 @@ describe('homepage section composition', () => {
         >
           <div />
         </SectionContainer>
-        <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'success', data: [] }}>
+        <SectionContainer id="hot-posts" title="Traveler Discussions" state={{ status: 'success', data: [] }}>
           <div data-testid="success-section">posts loaded</div>
         </SectionContainer>
       </div>,
@@ -97,8 +114,8 @@ describe('homepage section composition', () => {
 
         {/* All data sections in error state */}
         <SectionContainer
-          id="editors-picks"
-          title="Editor's Picks"
+          id="featured-destinations"
+          title="Featured Destinations"
           state={{ status: 'error', message: 'Error 1' }}
         >
           <div />
@@ -112,7 +129,7 @@ describe('homepage section composition', () => {
         </SectionContainer>
         <SectionContainer
           id="hot-posts"
-          title="Hot Posts"
+          title="Traveler Discussions"
           state={{ status: 'error', message: 'Error 3' }}
         >
           <div />
@@ -136,7 +153,7 @@ describe('homepage section composition', () => {
     expect(screen.queryByTestId('success-section')).not.toBeInTheDocument();
 
     // All section IDs exist (page layout is intact)
-    expect(document.getElementById('editors-picks')).toBeInTheDocument();
+    expect(document.getElementById('featured-destinations')).toBeInTheDocument();
     expect(document.getElementById('popular-destinations')).toBeInTheDocument();
     expect(document.getElementById('hot-posts')).toBeInTheDocument();
   });
@@ -148,8 +165,8 @@ describe('homepage section composition', () => {
     render(
       <div>
         <SectionContainer
-          id="editors-picks"
-          title="Editor's Picks"
+          id="featured-destinations"
+          title="Featured Destinations"
           state={{ status: 'error', message: 'err1' }}
           onRetry={retry1}
         >
@@ -179,28 +196,124 @@ describe('homepage section composition', () => {
   });
 });
 
-// --- Page HTML structure: section order ---
+// --- Page HTML structure: section order + hero data wiring ---
+
+type ElementProps = { children?: ReactNode; fallback?: ReactNode; id?: string };
+
+function makeAttraction(overrides: Partial<AttractionSummary> = {}): AttractionSummary {
+  return {
+    id: 1,
+    createdAt: '2026-09-01T12:00:00Z',
+    slug: 'forbidden-city',
+    name: 'Forbidden City',
+    nameZh: '故宫',
+    category: 'HISTORICAL_SITE',
+    tags: ['unesco'],
+    city: 'Beijing',
+    citySlug: 'beijing',
+    summary: 'Imperial palace complex at the heart of Beijing.',
+    coverImageUrl: '/img/forbidden-city.jpg',
+    bookingRequired: false,
+    ratingScore: 4.9,
+    favoriteCount: 120,
+    heatScore: 95,
+    ...overrides,
+  };
+}
+
+function makeEnvelope(content: AttractionSummary[]): PageResponse<AttractionSummary> {
+  return {
+    content,
+    page: 0,
+    size: 5,
+    totalElements: content.length,
+    totalPages: content.length > 0 ? 1 : 0,
+  };
+}
+
+/**
+ * Locates the hero's Suspense boundary inside the page element tree by matching
+ * the fallback SectionContainer's `featured-destinations` id.
+ */
+function findHeroBoundary(node: ReactNode): ReactElement<ElementProps> | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findHeroBoundary(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!isValidElement<ElementProps>(node)) return null;
+  if (node.type === Suspense) {
+    const { fallback } = node.props;
+    if (isValidElement<ElementProps>(fallback) && fallback.props.id === 'featured-destinations') {
+      return node;
+    }
+  }
+  return findHeroBoundary(node.props.children);
+}
+
+function heroSectionFrom(boundary: ReactElement<ElementProps>): () => Promise<ReactNode> {
+  const child = boundary.props.children;
+  if (!isValidElement(child)) throw new Error('Hero Suspense boundary has no element child');
+  return child.type as () => Promise<ReactNode>;
+}
+
 describe('homepage page structure', () => {
-  it('HomePage renders section IDs in correct order', () => {
+  beforeEach(() => {
+    vi.mocked(getAttractions).mockReset();
+    vi.mocked(getPopularAttractions).mockReset();
+    vi.mocked(getHotPosts).mockReset();
+    vi.mocked(getAttractions).mockResolvedValue(makeEnvelope([]));
+    vi.mocked(getPopularAttractions).mockResolvedValue([]);
+    vi.mocked(getHotPosts).mockResolvedValue([]);
+  });
+
+  it('HomePage renders section IDs in correct order including featured-destinations', () => {
     const html = renderToString(<HomePage />);
 
-    // Verify section IDs appear in the correct order in the HTML
     const searchIndex = html.indexOf('id="search-entry"');
-    const editorsIndex = html.indexOf('id="editors-picks"');
+    const featuredIndex = html.indexOf('id="featured-destinations"');
     const funcNavIndex = html.indexOf('id="function-navigation"');
     const destIndex = html.indexOf('id="popular-destinations"');
     const hotPostsIndex = html.indexOf('id="hot-posts"');
 
     expect(searchIndex).toBeGreaterThan(-1);
-    expect(editorsIndex).toBeGreaterThan(-1);
+    expect(featuredIndex).toBeGreaterThan(-1);
     expect(funcNavIndex).toBeGreaterThan(-1);
     expect(destIndex).toBeGreaterThan(-1);
     expect(hotPostsIndex).toBeGreaterThan(-1);
 
-    // Verify correct ordering
-    expect(searchIndex).toBeLessThan(editorsIndex);
-    expect(editorsIndex).toBeLessThan(funcNavIndex);
+    expect(searchIndex).toBeLessThan(featuredIndex);
+    expect(featuredIndex).toBeLessThan(funcNavIndex);
     expect(funcNavIndex).toBeLessThan(destIndex);
     expect(destIndex).toBeLessThan(hotPostsIndex);
+  });
+
+  it('hero resolves through getAttractions with the rating leaderboard params', async () => {
+    vi.mocked(getAttractions).mockResolvedValue(makeEnvelope([makeAttraction()]));
+
+    const boundary = findHeroBoundary(HomePage());
+    expect(boundary).not.toBeNull();
+
+    const section = await heroSectionFrom(boundary!)();
+
+    expect(getAttractions).toHaveBeenCalledWith({ sort: 'rating', size: 5 });
+
+    const html = renderToString(<>{section}</>);
+    expect(html).toContain('Featured Destinations');
+    expect(html).toContain('Forbidden City');
+  });
+
+  it('hides the whole hero section (including its title) when the leaderboard is empty', async () => {
+    vi.mocked(getAttractions).mockResolvedValue(makeEnvelope([]));
+
+    const boundary = findHeroBoundary(HomePage());
+    expect(boundary).not.toBeNull();
+
+    const section = await heroSectionFrom(boundary!)();
+
+    expect(getAttractions).toHaveBeenCalledWith({ sort: 'rating', size: 5 });
+    expect(section).toBeNull();
   });
 });

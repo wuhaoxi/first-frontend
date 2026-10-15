@@ -12,20 +12,23 @@ import {
 test.describe('Homepage — Hot Posts (homepage-hot-posts.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
+    await setupMock(page, { attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
   });
 
   /* ------------------------------------------------------------------
    * WHEN/THEN HP-1: 展示热门帖子列表
    *   WHEN  首页加载且接口返回帖子数据
-   *   THEN  展示帖子列表，每条含标题、城市名 chip、评论数、"N 小时前"相对时间
+   *   THEN  区块标题为 "Traveler Discussions"，每条含标题、城市名 chip、
+   *         评论数、相对时间
    *   AND   最多显示 5 条
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN HP-1: post list renders with title, city chip, comment count, relative time', async ({ page }) => {
+  test('WHEN/THEN HP-1: post list renders under "Traveler Discussions" with title, city chip, comment count, relative time', async ({ page }) => {
     if (!(await sectionHasData(page, 'hot-posts'))) return;
 
-    const posts = page.locator(`${POSTS_ID} a[href^="/community/post/"]`);
+    await expect(page.locator(`${POSTS_ID} h2`)).toHaveText('Traveler Discussions');
+
+    const posts = page.locator(`${POSTS_ID} a[href^="/posts/"]`);
     const count = await posts.count();
     expect(count).toBeGreaterThan(0);
     expect(count).toBeLessThanOrEqual(5);
@@ -87,19 +90,19 @@ test.describe('Homepage — Hot Posts (homepage-hot-posts.md)', () => {
   });
 
   /* ------------------------------------------------------------------
-   * WHEN/THEN HP-5: 点击 "发起讨论" 按钮
-   *   WHEN  讨论列表为空且用户点击 "发起讨论按钮"
-   *   THEN  跳转至 /community/new
+   * WHEN/THEN HP-5: 点击 "Start a Discussion" 按钮
+   *   WHEN  讨论列表为空且用户点击 "Start a Discussion"
+   *   THEN  跳转至 /posts/create
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN HP-5: clicking "Start a Discussion" navigates to /community/new', async ({ page }) => {
+  test('WHEN/THEN HP-5: clicking "Start a Discussion" navigates to /posts/create', async ({ page }) => {
     await setupMock(page, { postsEmpty: true });
     await goHome(page, { viewport: DESKTOP });
     await waitForSection(page, 'hot-posts');
 
-    const startBtn = page.locator(`${POSTS_ID} a[href="/community/new"]`);
+    const startBtn = page.locator(`${POSTS_ID} a[href="/posts/create"]`);
     await expect(startBtn).toBeVisible({ timeout: 10000 });
     await startBtn.click();
-    await page.waitForURL('**/community/new', { timeout: 10000 });
+    await page.waitForURL('**/posts/create', { timeout: 10000 });
   });
 
   /* ------------------------------------------------------------------
@@ -113,5 +116,19 @@ test.describe('Homepage — Hot Posts (homepage-hot-posts.md)', () => {
 
     await expect(page.locator(`${POSTS_ID} [role="alert"]`)).toBeVisible({ timeout: 15000 });
     await expect(page.locator(`${POSTS_ID} button`).filter({ hasText: /Retry/i })).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------
+   * WHEN/THEN HP-7: 区块标题右侧 "View all" 跳转帖子社区
+   *   WHEN  用户点击 Traveler Discussions 区块的 "View all"
+   *   THEN  页面跳转至 /posts
+   * ------------------------------------------------------------------ */
+  test('WHEN/THEN HP-7: "View all" link navigates to /posts', async ({ page }) => {
+    const viewAll = page.locator(`${POSTS_ID} a[href="/posts"]`);
+    await expect(viewAll).toBeVisible({ timeout: 15000 });
+    await expect(viewAll).toHaveText(/View all/i);
+
+    await viewAll.click();
+    await page.waitForURL('**/posts', { timeout: 10000 });
   });
 });

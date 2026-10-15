@@ -82,6 +82,39 @@ describe('HomepagePopularDestinations', () => {
     expect(screen.getByRole('img')).toHaveAttribute('alt', 'Forbidden City');
   });
 
+  it('overlays a one-decimal rating badge with a star on every card image', () => {
+    const { container } = render(<HomepagePopularDestinations attractions={mockAttractions} />);
+
+    const badges = Array.from(container.querySelectorAll('[class*="bg-black/50"]'));
+    expect(badges).toHaveLength(4);
+
+    badges.forEach((badge) => {
+      expect(badge.textContent).toContain('4.9');
+      expect(badge.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+      // The badge overlays the fixed-ratio image area
+      expect(badge.closest('[class*="aspect-[4/3]"]')).not.toBeNull();
+    });
+  });
+
+  it('pads ratings to one decimal place', () => {
+    render(<HomepagePopularDestinations attractions={[makeAttraction({ ratingScore: 4 })]} />);
+
+    expect(screen.getByText('4.0')).toBeInTheDocument();
+  });
+
+  it('uses a consistent card surface with a hover lift', () => {
+    render(<HomepagePopularDestinations attractions={mockAttractions} />);
+
+    screen.getAllByRole('link').forEach((card) => {
+      expect(card.className).toContain('rounded-xl');
+      expect(card.className).toContain('border');
+      expect(card.className).toContain('bg-card');
+      expect(card.className).toContain('shadow-sm');
+      expect(card.className).toContain('hover:-translate-y-0.5');
+      expect(card.className).toContain('hover:shadow-md');
+    });
+  });
+
   it('calls onAttractionClick with the slug on card click', async () => {
     const onAttractionClick = vi.fn();
     render(

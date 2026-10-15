@@ -11,7 +11,7 @@ import {
 test.describe('Homepage — Search Entry (homepage-search-entry.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
+    await setupMock(page, { attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
     await waitForSection(page, 'search-entry');
   });
@@ -26,24 +26,29 @@ test.describe('Homepage — Search Entry (homepage-search-entry.md)', () => {
     const input = page.locator('#homepage-search');
     await expect(input).toBeVisible();
     await expect(input).toHaveAttribute('placeholder', /Search/);
-    await expect(input).toHaveAttribute('aria-label', 'Search destinations');
+    await expect(input).toHaveAttribute('aria-label', 'Search attractions');
 
     const button = page.locator(`${SEARCH_ID} button[aria-label="Search"]`);
     await expect(button).toBeVisible();
   });
 
   /* ------------------------------------------------------------------
-   * WHEN/THEN SE-2: 输入 "Chengdu" 并回车 → 跳转 /guides?q=Chengdu
+   * WHEN/THEN SE-2: 输入 "Chengdu" 并回车 → 跳转 /attractions?q=Chengdu 并自动搜索
    *   WHEN  用户在首页搜索栏输入 "Chengdu" 并回车
-   *   THEN  页面跳转至 /guides?q=Chengdu
+   *   THEN  页面跳转至 /attractions?q=Chengdu
+   *   AND   景点列表页自动执行关键词搜索并展示结果
    * ------------------------------------------------------------------ */
-  test('WHEN/THEN SE-2: typing "Chengdu" and Enter navigates to /guides?q=Chengdu', async ({ page }) => {
+  test('WHEN/THEN SE-2: typing "Chengdu" and Enter navigates to /attractions?q=Chengdu with auto-searched results', async ({ page }) => {
     await page.locator('#homepage-search').click();
     await page.keyboard.type('Chengdu', { delay: 10 });
     await page.keyboard.press('Enter');
 
-    await page.waitForURL('**/guides?q=Chengdu', { timeout: 10000 });
-    expect(page.url()).toContain('/guides?q=Chengdu');
+    await page.waitForURL('**/attractions?q=Chengdu', { timeout: 10000 });
+    expect(page.url()).toContain('/attractions?q=Chengdu');
+
+    // The list page reads ?q and searches automatically: chip + matching result
+    await expect(page.getByLabel('Clear search: Chengdu')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Chengdu Panda Base' })).toBeVisible({ timeout: 10000 });
   });
 
   /* ------------------------------------------------------------------
@@ -56,7 +61,7 @@ test.describe('Homepage — Search Entry (homepage-search-entry.md)', () => {
     await page.keyboard.type('成都 攻略', { delay: 10 });
     await page.keyboard.press('Enter');
 
-    await page.waitForURL(/\/guides\?q=/, { timeout: 10000 });
+    await page.waitForURL(/\/attractions\?q=/, { timeout: 10000 });
     // Chinese chars "成都" encoded as UTF-8 percent-encoding
     expect(page.url()).toContain('%E6%88%90%E9%83%BD');
     // Raw Chinese should not appear in the URL
@@ -66,15 +71,15 @@ test.describe('Homepage — Search Entry (homepage-search-entry.md)', () => {
   /* ------------------------------------------------------------------
    * WHEN/THEN SE-4: 点击搜索按钮触发
    *   WHEN  用户输入关键词后点击搜索按钮
-   *   THEN  行为与回车一致，跳转至 /guides?q={keyword}
+   *   THEN  行为与回车一致，跳转至 /attractions?q={keyword}
    * ------------------------------------------------------------------ */
   test('WHEN/THEN SE-4: clicking search button navigates same as Enter', async ({ page }) => {
     await page.locator('#homepage-search').click();
     await page.keyboard.type('Beijing', { delay: 10 });
     await page.locator(`${SEARCH_ID} button[aria-label="Search"]`).click();
 
-    await page.waitForURL('**/guides?q=Beijing', { timeout: 10000 });
-    expect(page.url()).toContain('/guides?q=Beijing');
+    await page.waitForURL('**/attractions?q=Beijing', { timeout: 10000 });
+    expect(page.url()).toContain('/attractions?q=Beijing');
   });
 
   /* ------------------------------------------------------------------

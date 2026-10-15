@@ -26,6 +26,8 @@ export async function getAttractions(
   const query = new URLSearchParams();
   if (params.city !== undefined) query.set('city', params.city);
   if (params.category !== undefined) query.set('category', params.category);
+  if (params.sort !== undefined) query.set('sort', params.sort);
+  if (params.q !== undefined) query.set('q', params.q);
   if (params.page !== undefined) query.set('page', String(params.page));
   if (params.size !== undefined) query.set('size', String(params.size));
 

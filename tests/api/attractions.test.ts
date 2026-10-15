@@ -86,6 +86,46 @@ describe('attractions API client', () => {
     expect(fetch).toHaveBeenCalledWith('/api/attractions?page=2', { cache: 'no-store' });
   });
 
+  it('getAttractions appends sort before size when present', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 }),
+    });
+
+    await getAttractions({ sort: 'rating', size: 5 });
+    expect(fetch).toHaveBeenCalledWith('/api/attractions?sort=rating&size=5', { cache: 'no-store' });
+  });
+
+  it('getAttractions appends URL-encoded q when present', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }),
+    });
+
+    await getAttractions({ q: 'great wall' });
+    expect(fetch).toHaveBeenCalledWith('/api/attractions?q=great+wall', { cache: 'no-store' });
+
+    // The encoding round-trips: the backend receives the original keyword
+    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(new URLSearchParams(calledUrl.split('?')[1]).get('q')).toBe('great wall');
+  });
+
+  it('getAttractions omits sort and q when absent', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }),
+    });
+
+    await getAttractions({ city: 'beijing' });
+    expect(fetch).toHaveBeenCalledWith('/api/attractions?city=beijing', { cache: 'no-store' });
+  });
+
   // --- getPopularAttractions ---
 
   it('getPopularAttractions omits limit when no argument given', async () => {

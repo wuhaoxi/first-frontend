@@ -11,7 +11,7 @@ import {
 test.describe('Homepage — Popular Destinations (homepage-popular-destinations.md)', () => {
   test.beforeEach(async ({ page }) => {
     await resetMock(page);
-    await setupMock(page, { guidesFail: false, attractionsFail: false, postsFail: false });
+    await setupMock(page, { attractionsFail: false, postsFail: false });
     await goHome(page, { viewport: DESKTOP });
   });
 
@@ -55,9 +55,14 @@ test.describe('Homepage — Popular Destinations (homepage-popular-destinations.
     }
 
     // Placeholder block (mock covers are all null → first letter shown)
-    const placeholder = page.locator(`${DEST_ID} .text-2xl`).first();
+    // Scoped to card anchors — the section h2 also carries the text-2xl class
+    const placeholder = page.locator(`${DEST_ID} a .text-2xl`).first();
     await expect(placeholder).toBeVisible();
     await expect(placeholder).toHaveText('F');
+
+    // Rating badge (Forbidden City ratingScore 4.9 → "4.9")
+    const forbidden = page.locator(`${DEST_ID} a[href="/attractions/forbidden-city"]`);
+    await expect(forbidden.getByText('4.9', { exact: true })).toBeVisible();
   });
 
   /* ------------------------------------------------------------------
@@ -106,5 +111,19 @@ test.describe('Homepage — Popular Destinations (homepage-popular-destinations.
 
     await expect(page.locator(`${DEST_ID} [role="alert"]`)).toBeVisible({ timeout: 15000 });
     await expect(page.locator(`${DEST_ID} button`).filter({ hasText: /Retry/i })).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------
+   * WHEN/THEN PD-6: 区块标题右侧 "View all" 跳转景点目录
+   *   WHEN  用户点击 Popular Destinations 区块的 "View all"
+   *   THEN  页面跳转至 /attractions
+   * ------------------------------------------------------------------ */
+  test('WHEN/THEN PD-6: "View all" link navigates to /attractions', async ({ page }) => {
+    const viewAll = page.locator(`${DEST_ID} a[href="/attractions"]`);
+    await expect(viewAll).toBeVisible({ timeout: 15000 });
+    await expect(viewAll).toHaveText(/View all/i);
+
+    await viewAll.click();
+    await page.waitForURL('**/attractions', { timeout: 10000 });
   });
 });

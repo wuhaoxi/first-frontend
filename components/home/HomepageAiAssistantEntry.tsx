@@ -1,7 +1,6 @@
 'use client';
 
 import { Bot } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 interface HomepageAiAssistantEntryProps {
   onOpenAiAssistant?: () => void;
@@ -18,13 +17,14 @@ export function HomepageAiAssistantEntry({
   };
 
   return (
-    <Button
+    <button
+      type="button"
       onClick={handleClick}
-      aria-label="AI 助手"
-      className="fixed bottom-4 right-4 z-50 min-h-11 min-w-11 rounded-full shadow-lg p-3"
-      size="icon"
+      aria-label="AI Assistant"
+      className="fixed bottom-4 right-4 z-50 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-5 text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Bot className="h-6 w-6" aria-hidden="true" />
-    </Button>
+      <Bot className="h-5 w-5" aria-hidden="true" />
+      <span>AI Assistant</span>
+    </button>
   );
 }

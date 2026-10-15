@@ -22,7 +22,7 @@ interface SectionContainerProps {
 
 function sectionIdToSkeletonVariant(id: SectionId): SkeletonVariant {
   switch (id) {
-    case 'editors-picks':
+    case 'featured-destinations':
       return 'hero';
     case 'popular-destinations':
       return 'grid';

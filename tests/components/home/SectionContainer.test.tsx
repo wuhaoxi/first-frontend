@@ -12,7 +12,7 @@ import { SectionContainer } from '@/components/home/SectionContainer';
 
 describe('SectionContainer', () => {
   const defaultProps = {
-    id: 'editors-picks' as const,
+    id: 'featured-destinations' as const,
     state: { status: 'idle' as const },
   };
 
@@ -22,17 +22,17 @@ describe('SectionContainer', () => {
         <div>Content</div>
       </SectionContainer>
     );
-    const section = container.querySelector('section#editors-picks');
+    const section = container.querySelector('section#featured-destinations');
     expect(section).toBeInTheDocument();
   });
 
   it('renders an <h2> title when title prop is provided', () => {
     render(
-      <SectionContainer {...defaultProps} title="Editor's Picks">
+      <SectionContainer {...defaultProps} title="Featured Destinations">
         <div>Content</div>
       </SectionContainer>
     );
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent("Editor's Picks");
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Featured Destinations');
   });
 
   it('does not render an <h2> when title is not provided', () => {
@@ -47,7 +47,7 @@ describe('SectionContainer', () => {
   it('renders children when state is success', () => {
     render(
       <SectionContainer
-        id="editors-picks"
+        id="featured-destinations"
         state={{ status: 'success', data: [] }}
       >
         <div>Success content</div>
@@ -59,7 +59,7 @@ describe('SectionContainer', () => {
   it('renders SectionSkeleton when state is loading', () => {
     const { container } = render(
       <SectionContainer
-        id="editors-picks"
+        id="featured-destinations"
         state={{ status: 'loading' }}
       >
         <div>Should not render</div>
@@ -74,7 +74,7 @@ describe('SectionContainer', () => {
     const onRetry = vi.fn();
     render(
       <SectionContainer
-        id="editors-picks"
+        id="featured-destinations"
         state={{ status: 'error', message: 'Failed to load' }}
         onRetry={onRetry}
       >
@@ -87,7 +87,7 @@ describe('SectionContainer', () => {
 
   it('renders nothing visible when state is idle and no children', () => {
     const { container } = render(
-      <SectionContainer id="editors-picks" state={{ status: 'idle' }} />
+      <SectionContainer id="featured-destinations" state={{ status: 'idle' }} />
     );
     const section = container.querySelector('section');
     expect(section).toBeInTheDocument();
@@ -103,6 +103,18 @@ describe('SectionContainer', () => {
     );
     const skeletons = container.querySelectorAll('[data-skeleton]');
     expect(skeletons.length).toBe(6); // grid variant default
+  });
+
+  it('maps featured-destinations to the hero skeleton variant', () => {
+    const { container } = render(
+      <SectionContainer
+        id="featured-destinations"
+        state={{ status: 'loading' }}
+      />
+    );
+    const skeletons = container.querySelectorAll('[data-skeleton]');
+    expect(skeletons.length).toBe(1);
+    expect(skeletons[0].className).toContain('h-64');
   });
 
   it('supports custom className', () => {
@@ -148,7 +160,7 @@ describe('SectionContainer', () => {
     const onRetry = vi.fn();
     render(
       <SectionContainer
-        id="editors-picks"
+        id="featured-destinations"
         state={{ status: 'error', message: 'Failed to load' }}
         onRetry={onRetry}
       >
@@ -163,7 +175,7 @@ describe('SectionContainer', () => {
     refreshMock.mockClear();
     render(
       <SectionContainer
-        id="editors-picks"
+        id="featured-destinations"
         state={{ status: 'error', message: 'Failed to load' }}
       >
         <div>Should not render</div>

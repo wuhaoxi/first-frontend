@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+const mockReplace = vi.fn();
+let mockSearchParams = new URLSearchParams();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  useSearchParams: () => mockSearchParams,
+}));
+
 import AttractionsPage from '@/app/attractions/page';
 import { getAttractions } from '@/lib/api/attractions';
 import type { AttractionSummary } from '@/types/attraction';
@@ -86,6 +94,7 @@ describe('AttractionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getAttractions).mockReset();
+    mockSearchParams = new URLSearchParams();
     MockIntersectionObserver.instances = [];
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   });
@@ -449,5 +458,140 @@ describe('AttractionsPage', () => {
     await screen.findByText('Great Wall');
 
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+});
+
+describe('AttractionsPage keyword support', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getAttractions).mockReset();
+    mockSearchParams = new URLSearchParams();
+    MockIntersectionObserver.instances = [];
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  });
+
+  it('auto-searches with the q keyword from the URL on load', async () => {
+    mockSearchParams = new URLSearchParams({ q: 'Great Wall' });
+    vi.mocked(getAttractions).mockResolvedValue(
+      makeEnvelope({ content: [makeAttraction(2, 'Great Wall')], totalPages: 1 })
+    );
+
+    render(<AttractionsPage />);
+
+    expect(await screen.findByText('Great Wall')).toBeInTheDocument();
+    expect(getAttractions).toHaveBeenCalledWith({ q: 'Great Wall', page: 0, size: 20 });
+  });
+
+  it('trims the keyword before searching', async () => {
+    mockSearchParams = new URLSearchParams({ q: '  Great Wall  ' });
+    vi.mocked(getAttractions).mockResolvedValue(
+      makeEnvelope({ content: [makeAttraction(2, 'Great Wall')], totalPages: 1 })
+    );
+
+    render(<AttractionsPage />);
+
+    expect(await screen.findByText('Great Wall')).toBeInTheDocument();
+    expect(getAttractions).toHaveBeenCalledWith({ q: 'Great Wall', page: 0, size: 20 });
+  });
+
+  it('renders a removable chip reading Search: “Great Wall” above the city filter row', async () => {
+    mockSearchParams = new URLSearchParams({ q: 'Great Wall' });
+    vi.mocked(getAttractions).mockResolvedValue(
+      makeEnvelope({ content: [makeAttraction(2, 'Great Wall')], totalPages: 1 })
+    );
+
+    render(<AttractionsPage />);
+    await screen.findByText('Great Wall');
+
+    const chip = screen.getByRole('button', { name: 'Clear search: Great Wall' });
+    expect(chip).toHaveTextContent('Search: “Great Wall”');
+
+    const cityRow = screen.getByRole('group', { name: 'Filter by city' });
+    expect(chip.compareDocumentPosition(cityRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('treats a blank q as an absent keyword', async () => {
+    mockSearchParams = new URLSearchParams({ q: '   ' });
+    vi.mocked(getAttractions).mockResolvedValue(
+      makeEnvelope({ content: [makeAttraction(1, 'Forbidden City')], totalPages: 1 })
+    );
+
+    render(<AttractionsPage />);
+    await screen.findByText('Forbidden City');
+
+    expect(getAttractions).toHaveBeenCalledWith({ page: 0, size: 20 });
+    expect(screen.queryByRole('button', { name: /^Clear search/ })).not.toBeInTheDocument();
+  });
+
+  it('clears the keyword, replaces the URL with /attractions and refetches without q', async () => {
+    mockSearchParams = new URLSearchParams({ q: 'Great Wall' });
+    vi.mocked(getAttractions)
+      .mockResolvedValueOnce(
+        makeEnvelope({ content: [makeAttraction(2, 'Great Wall')], totalPages: 1 })
+      )
+      .mockResolvedValueOnce(
+        makeEnvelope({ content: [makeAttraction(1, 'Forbidden City')], totalPages: 1 })
+      );
+
+    render(<AttractionsPage />);
+    await screen.findByText('Great Wall');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search: Great Wall' }));
+
+    expect(mockReplace).toHaveBeenCalledWith('/attractions');
+    expect(await screen.findByText('Forbidden City')).toBeInTheDocument();
+    expect(getAttractions).toHaveBeenLastCalledWith({ page: 0, size: 20 });
+    expect(screen.queryByRole('button', { name: /^Clear search/ })).not.toBeInTheDocument();
+  });
+
+  it('combines the keyword with the city filter', async () => {
+    mockSearchParams = new URLSearchParams({ q: 'Lake' });
+    vi.mocked(getAttractions)
+      .mockResolvedValueOnce(
+        makeEnvelope({ content: [makeAttraction(3, 'West Lake')], totalPages: 1 })
+      )
+      .mockResolvedValueOnce(
+        makeEnvelope({ content: [makeAttraction(3, 'West Lake')], totalPages: 1 })
+      );
+
+    render(<AttractionsPage />);
+    await screen.findByText('West Lake');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hangzhou' }));
+    await screen.findByText('West Lake');
+
+    expect(getAttractions).toHaveBeenLastCalledWith({
+      city: 'hangzhou',
+      q: 'Lake',
+      page: 0,
+      size: 20,
+    });
+  });
+
+  it('carries the keyword into auto-load requests', async () => {
+    mockSearchParams = new URLSearchParams({ q: 'Great' });
+    vi.mocked(getAttractions)
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makeAttraction(2, 'Great Wall')],
+          totalElements: 2,
+          totalPages: 2,
+        })
+      )
+      .mockResolvedValueOnce(
+        makeEnvelope({
+          content: [makeAttraction(4, 'Great Hall of the People')],
+          page: 1,
+          totalPages: 2,
+        })
+      );
+
+    render(<AttractionsPage />);
+    await screen.findByText('Great Wall');
+
+    await triggerIntersection();
+
+    expect(await screen.findByText('Great Hall of the People')).toBeInTheDocument();
+    expect(getAttractions).toHaveBeenLastCalledWith({ q: 'Great', page: 1, size: 20 });
   });
 });

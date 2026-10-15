@@ -5,6 +5,9 @@ export default defineConfig({
   timeout: 30000,
   expect: { timeout: 10000 },
   retries: process.env.CI ? 1 : 1,
+  // The mock server keeps ONE global mutable state and every spec resets it in
+  // beforeEach — parallel workers would configure it out from under each other.
+  workers: 1,
   globalSetup: './tests/e2e/global-setup.ts',
   globalTeardown: './tests/e2e/global-teardown.ts',
   use: {

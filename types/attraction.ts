@@ -40,9 +40,13 @@ export interface AttractionResponse extends AttractionSummary {
   favorited: boolean | null;
 }
 
+export type AttractionSort = 'popular' | 'rating' | 'heat' | 'favorites' | 'latest';
+
 export interface GetAttractionsParams {
   city?: string;
   category?: AttractionCategory;
+  sort?: AttractionSort;
+  q?: string;
   page?: number;
   size?: number;
 }

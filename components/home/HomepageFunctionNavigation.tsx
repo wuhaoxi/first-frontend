@@ -17,31 +17,46 @@ interface HomepageFunctionNavigationProps {
   onOpenAiAssistant?: () => void;
 }
 
+const CARD_CLASS =
+  'flex min-h-[88px] flex-col items-center gap-3 rounded-xl border bg-card p-6 text-center text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+const ICON_CHIP_CLASS = 'flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary';
+
 const DEFAULT_ITEMS: FunctionNavItem[] = [
   {
     key: 'community',
-    title: '旅游社区',
+    title: 'Community',
     description: 'Share travel stories and tips with fellow travelers',
-    icon: <Users className="h-8 w-8" aria-hidden="true" />,
+    icon: <Users className="h-6 w-6" aria-hidden="true" />,
     action: 'link',
-    href: '/community',
+    href: '/posts',
   },
   {
-    key: 'guides',
-    title: '景点攻略',
+    key: 'attractions',
+    title: 'Attractions',
     description: 'Browse top attractions across China',
-    icon: <Map className="h-8 w-8" aria-hidden="true" />,
+    icon: <Map className="h-6 w-6" aria-hidden="true" />,
     action: 'link',
     href: '/attractions',
   },
   {
     key: 'ai-assistant',
-    title: 'AI 助手',
+    title: 'AI Assistant',
     description: 'Plan your trip with our intelligent assistant',
-    icon: <Bot className="h-8 w-8" aria-hidden="true" />,
+    icon: <Bot className="h-6 w-6" aria-hidden="true" />,
     action: 'ai-assistant',
   },
 ];
+
+function CardContent({ item }: { item: FunctionNavItem }) {
+  return (
+    <>
+      <span className={ICON_CHIP_CLASS}>{item.icon}</span>
+      <span className="font-semibold">{item.title}</span>
+      <span className="text-sm text-muted-foreground">{item.description}</span>
+    </>
+  );
+}
 
 export function HomepageFunctionNavigation({
   items = DEFAULT_ITEMS,
@@ -58,27 +73,15 @@ export function HomepageFunctionNavigation({
       {items.map((item) => {
         if (item.action === 'link' && item.href) {
           return (
-            <Link
-              key={item.key}
-              href={item.href}
-              className="flex flex-col items-center gap-2 rounded-xl border bg-card p-6 text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[88px]"
-            >
-              {item.icon}
-              <span className="font-semibold">{item.title}</span>
-              <span className="text-sm text-muted-foreground text-center">{item.description}</span>
+            <Link key={item.key} href={item.href} className={CARD_CLASS}>
+              <CardContent item={item} />
             </Link>
           );
         }
 
         return (
-          <button
-            key={item.key}
-            onClick={handleAiClick}
-            className="flex flex-col items-center gap-2 rounded-xl border bg-card p-6 text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[88px]"
-          >
-            {item.icon}
-            <span className="font-semibold">{item.title}</span>
-            <span className="text-sm text-muted-foreground text-center">{item.description}</span>
+          <button key={item.key} type="button" onClick={handleAiClick} className={CARD_CLASS}>
+            <CardContent item={item} />
           </button>
         );
       })}

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-import { getFeaturedGuides, getHotPosts } from '@/lib/api/home';
-import { getPopularAttractions } from '@/lib/api/attractions';
+import { getHotPosts } from '@/lib/api/home';
+import { getAttractions, getPopularAttractions } from '@/lib/api/attractions';
 import { AssistantPanel } from '@/components/assistant/AssistantPanel';
 import { AssistantProvider } from '@/components/assistant/AssistantProvider';
 import {
@@ -9,24 +9,25 @@ import {
 } from '@/components/assistant/AssistantTriggers';
 import { SectionContainer } from '@/components/home/SectionContainer';
 import { HomepageSearchEntry } from '@/components/home/HomepageSearchEntry';
-import { HomepageEditorsPicks } from '@/components/home/HomepageEditorsPicks';
+import { HomepageFeaturedDestinations } from '@/components/home/HomepageFeaturedDestinations';
 import { HomepagePopularDestinations } from '@/components/home/HomepagePopularDestinations';
 import { HomepageHotPosts } from '@/components/home/HomepageHotPosts';
 
 export const dynamic = 'force-dynamic';
 
-async function EditorsPicksSection() {
+async function FeaturedDestinationsSection() {
   try {
-    const guides = await getFeaturedGuides();
+    const page = await getAttractions({ sort: 'rating', size: 5 });
+    if (page.content.length === 0) return null;
     return (
-      <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'success', data: guides }}>
-        <HomepageEditorsPicks guides={guides} />
+      <SectionContainer id="featured-destinations" title="Featured Destinations" state={{ status: 'success', data: page.content }}>
+        <HomepageFeaturedDestinations attractions={page.content} />
       </SectionContainer>
     );
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Failed to load editor\'s picks';
+    const message = e instanceof Error ? e.message : 'Failed to load featured destinations';
     return (
-      <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'error', message }}>
+      <SectionContainer id="featured-destinations" title="Featured Destinations" state={{ status: 'error', message }}>
         <div />
       </SectionContainer>
     );
@@ -37,7 +38,7 @@ async function PopularDestinationsSection() {
   try {
     const attractions = await getPopularAttractions();
     return (
-      <SectionContainer id="popular-destinations" title="Popular Destinations" state={{ status: 'success', data: attractions }}>
+      <SectionContainer id="popular-destinations" title="Popular Destinations" action={{ label: 'View all', href: '/attractions' }} state={{ status: 'success', data: attractions }}>
         <HomepagePopularDestinations attractions={attractions} />
       </SectionContainer>
     );
@@ -55,14 +56,14 @@ async function HotPostsSection() {
   try {
     const posts = await getHotPosts();
     return (
-      <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'success', data: posts }}>
+      <SectionContainer id="hot-posts" title="Traveler Discussions" action={{ label: 'View all', href: '/posts' }} state={{ status: 'success', data: posts }}>
         <HomepageHotPosts posts={posts} />
       </SectionContainer>
     );
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Failed to load hot posts';
     return (
-      <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'error', message }}>
+      <SectionContainer id="hot-posts" title="Traveler Discussions" state={{ status: 'error', message }}>
         <div />
       </SectionContainer>
     );
@@ -72,19 +73,19 @@ async function HotPostsSection() {
 export default function HomePage() {
   return (
     <AssistantProvider>
-      <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
+      <div className="mx-auto max-w-7xl px-4 space-y-14 pt-6 pb-24">
         {/* Search Entry — static, renders immediately */}
         <section id="search-entry">
           <HomepageSearchEntry />
         </section>
 
-        {/* Editor's Picks — Suspense with hero skeleton */}
+        {/* Featured Destinations (Hero) — Suspense with carousel skeleton */}
         <Suspense fallback={
-          <SectionContainer id="editors-picks" title="Editor's Picks" state={{ status: 'loading' }}>
+          <SectionContainer id="featured-destinations" title="Featured Destinations" state={{ status: 'loading' }}>
             <div />
           </SectionContainer>
         }>
-          <EditorsPicksSection />
+          <FeaturedDestinationsSection />
         </Suspense>
 
         {/* Function Navigation — static, renders immediately */}
@@ -101,9 +102,9 @@ export default function HomePage() {
           <PopularDestinationsSection />
         </Suspense>
 
-        {/* Hot Posts — Suspense with list skeleton */}
+        {/* Traveler Discussions — Suspense with list skeleton */}
         <Suspense fallback={
-          <SectionContainer id="hot-posts" title="Hot Posts" state={{ status: 'loading' }}>
+          <SectionContainer id="hot-posts" title="Traveler Discussions" state={{ status: 'loading' }}>
             <div />
           </SectionContainer>
         }>

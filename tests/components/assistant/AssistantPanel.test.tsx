@@ -50,7 +50,7 @@ function renderAssistant() {
 const input = () => screen.getByLabelText('Message');
 
 async function openFromEntry() {
-  await userEvent.click(screen.getByRole('button', { name: 'AI 助手' }));
+  await userEvent.click(screen.getByRole('button', { name: 'AI Assistant' }));
 }
 
 async function sendMessage(text: string) {

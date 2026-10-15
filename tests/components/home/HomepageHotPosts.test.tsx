@@ -46,10 +46,15 @@ describe('HomepageHotPosts', () => {
     expect(longTitle.className).toContain('line-clamp');
   });
 
-  it('post row is a link to /community/post/{id}', () => {
+  it('post row is a link to /posts/{id}', () => {
     render(<HomepageHotPosts posts={mockPosts} />);
     const link = screen.getByRole('link', { name: /Best places/ });
-    expect(link).toHaveAttribute('href', '/community/post/1');
+    expect(link).toHaveAttribute('href', '/posts/1');
+  });
+
+  it('never links to the never-delivered /community routes', () => {
+    const { container } = render(<HomepageHotPosts posts={mockPosts} />);
+    expect(container.querySelector('a[href^="/community"]')).toBeNull();
   });
 
   it('calls onPostClick on click', async () => {
@@ -60,10 +65,13 @@ describe('HomepageHotPosts', () => {
     expect(onPostClick).toHaveBeenCalledWith(1);
   });
 
-  it('shows empty state with CTA when posts is empty', () => {
+  it('shows the full empty-state copy and a CTA to /posts/create', () => {
     render(<HomepageHotPosts posts={[]} />);
-    expect(screen.getByText(/Start a Discussion/i)).toBeInTheDocument();
+
+    expect(
+      screen.getByText('No discussions yet. Be the first to ask a question!'),
+    ).toBeInTheDocument();
     const cta = screen.getByRole('link', { name: /Start a Discussion/i });
-    expect(cta).toHaveAttribute('href', '/community/new');
+    expect(cta).toHaveAttribute('href', '/posts/create');
   });
 });
